@@ -35,19 +35,23 @@ chương, nhưng chỉ mở rộng qua các cổng trong ROADMAP.
 Trình duyệt → FastAPI + Jinja2 → SQLite và dữ liệu sách local
                                   ↓ xuất batch bất biến
                          Drive: manifest + source + snapshots
-                                  ↓ người dùng mở notebook
+                                  ↓ runner CLI (sau kiểm chứng) / notebook
                          Colab → model → result từng chunk
                                   ↓ nhập và kiểm tra ở local
                          Review → TXT/EPUB
 ```
 
 Máy Dell Vostro giữ giao diện, nguồn sách, database và trạng thái ứng dụng.
-Thông số máy thực tế chưa xác nhận; không suy ra khả năng chạy model hay
-trần dung lượng từ tên thiết bị. Backend local là nơi duy nhất truy cập SQLite.
+Đã xác nhận dùng WSL; RAM, distro, Python và dung lượng chưa xác nhận. Không
+suy ra khả năng chạy model hay trần dung lượng từ tên thiết bị. Backend local là nơi duy nhất truy cập SQLite.
 
-Colab là phiên notebook tương tác để xử lý batch bằng file, không phải backend
-luôn bật. Notebook không truy cập SQL từ xa và không mở SQLite dùng chung trên
-Drive. Drive chỉ trao đổi manifest, nguồn, snapshot và kết quả bất biến.
+Colab xử lý batch bằng file theo phiên, không phải backend luôn bật. P2-03 dự kiến
+kiểm chứng Colab CLI trên WSL/tài khoản thực; chỉ khi đạt mới làm script local
+P2-04 điều phối batch → phiên Colab → runner → nhận/validate/import → giải phóng
+phiên. CLI là phương án tạm chưa được thử; nếu không đạt thì ghi lý do hoãn và
+dùng notebook fallback. Hai cách dùng chung batch, validator và checkpoint;
+runner không mở SQLite. Drive chỉ trao đổi manifest, nguồn, snapshot và kết quả
+bất biến. Auth/permission có thể cần người dùng; secret không vào bundle/log.
 
 Frontend dùng trang server-rendered của FastAPI/Jinja2. Chưa cần React,
 Tailwind, hàng đợi phân tán, Redis, Docker hoặc framework plugin/provider.
@@ -58,11 +62,16 @@ Cấu trúc module dự kiến nằm trong PLAN; chỉ tạo module khi có mã 
 1. Import nguồn, giữ raw và hash; preview thứ tự/heading trước khi chốt chương.
 2. Chia chương thành chunk theo thứ tự, vừa context budget của model thực chạy.
 3. Xuất batch tự chứa đủ nguồn, prompt, glossary, context và cấu hình cần chạy.
-4. Notebook xác thực batch, chạy tuần tự và lưu bền vững từng chunk hoàn tất.
+4. Runner CLI (sau kiểm chứng) hoặc notebook xác thực batch, chạy tuần tự và lưu
+   bền vững từng chunk ngoài VM (Drive/local), không chờ cuối job mới tải.
 5. Local kiểm tra và nhập result trong transaction ngắn; review rồi xuất sách.
 
 Đơn vị checkpoint là chunk, không phải cả chương. Khi runtime mất, load lại
 model, bỏ qua result đã xác thực và lưu bền vững; chunk dở phải chạy lại.
+Retry có giới hạn theo PLAN, không tự cấp GPU lại vô hạn hoặc vượt ngân sách;
+MVP ưu tiên người dùng bấm resume sau mất phiên. P3 nối script đã kiểm chứng
+vào nút Dịch/tiến độ/resume; nhận đủ result chuyển sang review, duyệt/export
+chính thức vẫn do người dùng chủ động.
 Không coi trạng thái “running” hoặc file vừa xuất hiện trên Drive là bằng chứng
 kết quả hoàn tất. File partial, sai checksum hoặc lệch snapshot phải được báo rõ.
 
@@ -97,8 +106,8 @@ Các liên kết tham khảo và giới hạn bằng chứng hiện có nằm �
 | --- | --- |
 | P0 | Benchmark 5 chương × 2 ứng viên, ngưỡng chất lượng/chi phí chốt trước khi chấm |
 | P1 | TXT qua fake provider, restart/resume, import idempotent và bảo toàn sửa tay |
-| P2 | Notebook/provider thật và EPUB, phục hồi khi ngắt runtime, giữ cấu trúc sách |
-| P3 | UI review/glossary, conflict/revision, backup/restore và accessibility |
+| P2 | Provider thật/EPUB; kiểm chứng CLI trên WSL rồi làm script điều phối, notebook fallback và phục hồi từ checkpoint ngoài VM |
+| P3 | UI Dịch/tiến độ/resume, review/glossary, conflict/revision, backup/restore và accessibility |
 | P4 | Crawler đúng một website có fixture, kiểm tra truy cập và SSRF |
 
 Bước tiếp theo là P0: cần mẫu nguồn hợp lệ, ngôn ngữ, hai ứng viên, ngân sách

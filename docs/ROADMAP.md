@@ -14,8 +14,11 @@ Hiện tại chỉ có tài liệu; bước kế tiếp là P0. Người thực 
 | P1-02 | Bundle và bảo vệ revision | Dev | Test duplicate/partial/conflict/crash đạt |
 | P2-01 | Notebook và provider thật | Dev | Ngắt runtime rồi resume từ result bền vững thành công |
 | P2-02 | EPUB import/export | Dev | Fixture spine/resource/XHTML đạt và mở đọc được |
+| P2-03 | Kiểm chứng Colab CLI trên WSL | Dev + người dùng | Auth, GPU/quota, truyền file, checkpoint ngoài VM và ngắt/resume được thử trên tài khoản thực; ghi bằng chứng hoặc lý do hoãn CLI và dùng notebook |
+| P2-04 | Script local điều phối Colab | Dev | Sau khi P2-03 đạt: batch → phiên Colab → runner → nhận/validate/import qua backend local → giải phóng phiên; chung hợp đồng/checkpoint với notebook, bảo toàn revision |
 | P3-01 | UI glossary/review | Dev + người dùng | Sửa, dịch lại và export không mất revision |
 | P3-02 | Backup, restore, accessibility | Dev | Restore thử thành công, form dùng được bằng bàn phím |
+| P3-03 | Nối flow dịch vào UI | Dev + người dùng | Nút Dịch/tiến độ/resume gọi script đã kiểm chứng; kết quả chuyển sang review, duyệt/export chính thức có chủ đích; có notebook fallback khi CLI bị hoãn |
 | P4-01 | Adapter một site | Dev | Crawl/import lặp đúng thứ tự, fixture và SSRF tests đạt |
 
 Mỗi dòng còn ở trạng thái chưa triển khai; tiêu chí phase bên dưới là điều kiện bổ sung, không thay thế DoD của task.
@@ -55,27 +58,32 @@ Acceptance: nhập một TXT → dịch giả → restart → nhận tiếp resu
 Exit: không mất source/sửa tay, không nhân kết quả khi import lại, lỗi được nhìn thấy và có cách tiếp tục.
 Output: vertical slice có kiểm thử; chưa đánh giá chất lượng dịch thật.
 
-## P2 — EPUB và Colab notebook với provider thật
+## P2 — EPUB và Colab runner với provider thật
 
 Phụ thuộc: P1 đạt exit; chọn provider qua P0 trước khi coi kết quả dịch là được chấp nhận.
 
 - Nối model/tokenizer/template thực, đo context budget và xác thực provenance.
-- Notebook đọc manifest từ Drive, chạy tuần tự, ghi từng result hoàn tất và báo lỗi rõ.
+- Notebook đọc manifest từ Drive, chạy tuần tự, ghi bền vững từng result hoàn tất ngoài VM và báo lỗi rõ; giữ làm fallback.
+- P2-03 kiểm chứng CLI trên WSL/tài khoản thực: auth tương tác, quyền truy cập, GPU/quota, truyền file, lưu result ngoài VM và ngắt/resume. Đây là phương án tạm, chưa được thử; nếu không đạt thì ghi lý do hoãn và tiếp tục notebook.
+- P2-04 phụ thuộc P2-03 đạt: script local theo yêu cầu xuất batch, tạo phiên, chạy runner, nhận/validate/import qua backend local và giải phóng phiên. Dùng chung batch, validator/checkpoint với notebook; không thêm service luôn bật.
+- Không chờ cuối job mới tải kết quả; file partial/conflict không được nhập đè sửa tay. Auth/permission cần người dùng khi được yêu cầu, secret không nằm trong bundle/log.
+- Retry theo giới hạn PLAN; không tự cấp lại GPU vô hạn hoặc vượt trần thử/ngân sách. MVP ưu tiên người dùng bấm resume sau mất phiên.
 - Resume quét result hợp lệ; runtime mất thì load lại model, dịch lại chunk đang dở.
 - Không mở SQLite trên Drive; không polling vô hạn hoặc giả định Colab còn sống.
 - Thêm EPUB import/export theo spine và mapping XHTML; giữ resource/link/metadata.
-- Test ngắt notebook, tải result thiếu bytes, lệch model/glossary và nhận kết quả không theo thứ tự.
+- Test ngắt runner CLI/notebook, tải result thiếu bytes, lệch model/glossary và nhận kết quả không theo thứ tự.
 - Test EPUB có spine khác thứ tự tên file, ảnh, link, heading và ký tự cần escape.
 - Kiểm tra bản EPUB xuất bằng parser/validator phù hợp và mở đọc thử trong ít nhất một reader.
 
 Acceptance: một sách mẫu TXT và EPUB đi hết luồng thực, resume không chạy lại chunk đã lưu hợp lệ.
 Exit: output XHTML/spine hợp lệ; phép đo thực vẫn đáp ứng ngưỡng P0 trên mẫu hồi quy.
-Output: hướng dẫn vận hành Colab và phục hồi; chưa có cam kết runtime/speed cố định.
+Output: hướng dẫn vận hành Colab và phục hồi, bằng chứng CLI đạt hoặc lý do hoãn cùng notebook fallback; chưa có cam kết runtime/speed cố định.
 
 ## P3 — Review và glossary đủ dùng hằng ngày
 
 Phụ thuộc: P2; giữ các trang đã có, không viết lại frontend.
 
+- P3-03 nối script P2-04 đã kiểm chứng vào nút Dịch, tiến độ và resume; khi nhận đủ result thì chuyển sang review. Nếu CLI hoãn, giữ flow notebook; review/duyệt/export chính thức vẫn có chủ đích.
 - So sánh nguồn/đích, sửa heading, chỉnh bản dịch và xem revision hiện hành.
 - Thêm canonical term/alias, ghi chú nhân vật/xưng hô và snapshot glossary.
 - Hiển thị pending/failed/stale/conflict; chọn tạo job mới cho phần cần dịch lại.
@@ -114,14 +122,14 @@ Output: một adapter có fixture; không tuyên bố hỗ trợ mọi website.
 | Nhiều website | Adapter đầu dùng ổn và có site thứ hai cụ thể | Fixture/điều kiện truy cập riêng; chỉ tách phần thực sự dùng chung |
 | Nhiều người dùng/Postgres | Có người dùng đồng thời và nhu cầu phân quyền thực | Auth, isolation dữ liệu, migration/backup, đo contention |
 
-Không thêm lease vào notebook batch thủ công; chỉ thêm khi có worker nhận việc tự động.
+Không thêm lease cho runner batch CLI/notebook theo yêu cầu; chỉ thêm khi có worker riêng nhận việc tự động.
 Không chuyển Postgres chỉ vì số chương lớn nếu SQLite local vẫn đáp ứng phép đo.
 Mỗi mở rộng cần acceptance riêng và không được làm hỏng invariant source/snapshot/revision.
 
 ## Việc cần chốt trước từng cổng
 
 - Trước P0: ngôn ngữ, 5 chương, hai ứng viên, chất lượng mong muốn và trần thử nghiệm.
-- Trước P1 chạy trên máy thật: RAM/OS/dung lượng, vị trí data và backup.
+- Trước P1 chạy trên máy thật: RAM/distro WSL/Python/dung lượng, vị trí data và backup.
 - Trước P2: model revision, tokenizer/template, quyền truy cập và giới hạn Colab thực tế.
 - Trước P4: website cụ thể, phạm vi chương và quyền truy cập hợp lệ.
 - Sau mỗi phase: ghi bằng chứng đạt/chưa đạt; chưa đạt thì sửa hoặc đổi quyết định, không tự mở phase tiếp.

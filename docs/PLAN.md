@@ -11,7 +11,7 @@ Bước tiếp theo là P0; các phase chưa có người nhận việc cụ th�
 - EN → VI là giả định làm việc, cần xác nhận ở P0; chưa khóa model hay ngân sách.
 - MVP hỗ trợ TXT trước, EPUB sau; crawler một website nằm ở P4, không bị bỏ khỏi mục tiêu.
 - Giữ nguyên bản gốc, thứ tự chương, bản dịch máy và lịch sử sửa tay.
-- Không có React, Celery, Redis, RAG, Docker, nhiều người dùng hay dịch nền trên Colab trong MVP.
+- Không có React, Celery, Redis, RAG, Docker, nhiều người dùng hay dịch vụ Colab luôn bật trong MVP.
 - Không cam kết tốc độ/chất lượng trước khi đo trên sách và phần cứng thực tế.
 
 ## 2. Quyết định còn mở
@@ -21,7 +21,7 @@ Bước tiếp theo là P0; các phase chưa có người nhận việc cụ th�
 | Ngôn ngữ và tiêu chí văn phong | Xác nhận EN → VI, mẫu bản dịch mong muốn | P0 |
 | Model và cách chạy | Hai ứng viên, quyền truy cập, giấy phép, VRAM | P0 |
 | Ngân sách | Hạn mức API/GPU và số chương dự kiến | P0 |
-| Máy local | RAM, dung lượng, hệ điều hành, Python khả dụng | P0/P1 |
+| Máy local | Đã xác nhận WSL; cần RAM, dung lượng, distro và Python khả dụng | P0/P1 |
 | Website crawl đầu tiên | URL, quyền truy cập, cấu trúc chương | Trước P4 |
 | Chất lượng chấp nhận được | Ngưỡng sửa tay và lỗi trọng yếu | Chốt trước khi chấm P0 |
 
@@ -34,8 +34,8 @@ Không chọn model sản xuất hoặc hứa thời gian hoàn tất khi chưa 
 Trình duyệt → FastAPI + Jinja2 → SQLite và thư mục sách local
                                   ↓ xuất batch
                          Drive: manifest + source bất biến
-                                  ↓ đọc thủ công
-                         Colab notebook → model
+                                  ↓ runner CLI (sau kiểm chứng) / notebook
+                         Phiên Colab → model
                                   ↓ ghi từng kết quả hoàn tất
                          Drive: result bất biến
                                   ↓ nhập có kiểm tra
@@ -43,10 +43,14 @@ Trình duyệt → FastAPI + Jinja2 → SQLite và thư mục sách local
 ```
 
 - FastAPI phục vụ trang server-rendered, upload, review, export và nhập kết quả.
-- Backend local là chủ sở hữu duy nhất của SQLite; notebook không mở DB.
+- Backend local là chủ sở hữu duy nhất của SQLite; runner Colab không mở DB.
 - SQLite đặt trên ổ local; Drive chỉ trao đổi file, không chứa DB dùng chung.
 - Batch là ảnh chụp đầu vào; sửa glossary/prompt tạo batch mới, không sửa batch cũ.
-- Notebook được người dùng mở và chạy; không coi Colab là dịch vụ luôn bật.
+- P2 kiểm chứng Colab CLI trên WSL trước khi làm script local điều phối theo yêu cầu; notebook là fallback.
+- Script tạo phiên, truyền batch, chạy runner, nhận/validate/import result qua backend local rồi giải phóng phiên; dùng chung batch, validator và checkpoint với notebook.
+- Kết quả mỗi chunk phải được lưu bền vững ngoài VM (Drive hoặc local) trước khi coi là checkpoint; không chờ cuối job mới tải.
+- Auth/permission cần người dùng khi CLI hoặc Drive yêu cầu; không đưa credential/token vào bundle hay log.
+- CLI là phương án tạm, chưa kiểm chứng trên WSL/tài khoản thực; nếu không đạt P2-03, ghi lý do hoãn và dùng notebook do người dùng mở/chạy. Colab không là dịch vụ luôn bật.
 - Khi runtime mất: load model lại, bỏ qua result đã xác thực và lưu bền vững; dịch lại chunk dở.
 - Local ghi DB trong transaction ngắn; không giữ transaction khi chạy model hoặc chờ Drive.
 - Tác vụ local dài có trạng thái lưu DB và được tiếp tục qua thao tác rõ ràng trong UI.
@@ -96,7 +100,7 @@ Provider đầu tiên có cùng hợp đồng đầu vào/đầu ra với fake p
 ## 6. State machine và thứ tự dịch
 
 - Job: `draft → exported → running → partial → completed`; có `failed` hoặc `cancelled`.
-- `running` là trạng thái quan sát được từ notebook/results, không chứng minh runtime còn sống.
+- `running` là trạng thái quan sát được từ runner/results, không chứng minh runtime còn sống.
 - Chunk/result: `pending → in_progress → completed`; lỗi thành `retryable_failed`, `failed` hoặc `needs_review`.
 - Resume đưa chunk `in_progress` không có result hợp lệ về `pending`; không nhận output chưa hoàn tất.
 - Job chỉ `completed` khi mọi chunk dự kiến có kết quả hợp lệ cho đúng snapshot.
@@ -128,14 +132,14 @@ Schema có `schema_version`; validator từ chối version/field lạ, kiểu sa
 | Payload | translated_text, input/output token counts nếu có, started_at, completed_at, payload SHA-256 |
 
 - Quy định một cách canonical hóa JSON cho hash; không hash phụ thuộc thứ tự key tùy ý.
-- Bundle tự chứa đủ prompt, glossary và context để notebook thực thi; hash/revision chỉ để kiểm chứng, không thay dữ liệu đầu vào.
+- Bundle tự chứa đủ prompt, glossary và context để runner CLI/notebook thực thi; hash/revision chỉ để kiểm chứng, không thay dữ liệu đầu vào.
 - Chốt trước P1: JSON key tăng dần, separator gọn, UTF-8 không BOM, không NaN; hash SHA-256 lowercase hex.
 - ID là chuỗi UUID, ordinal là số nguyên từ 0, timestamp UTC RFC3339; text giữ nguyên Unicode, không tự normalize lúc hash.
 - Result checksum tính trên object bỏ trường checksum; manifest hash tính trên toàn manifest canonical, không tự chứa hash của chính nó.
 - Hash raw file khác hash text chuẩn hóa; cả hai được giữ để phân biệt nguồn và pipeline.
 - Dùng revision cố định khi nhà cung cấp hỗ trợ; ghi rõ nếu API chỉ cung cấp tên model không bất biến.
 - Hash là kiểm tra toàn vẹn, không chứng minh file đáng tin hoặc model đã chạy đúng.
-- Notebook ghi file tạm, đóng file rồi công bố result hoàn tất; không coi thao tác sync Drive là atomic.
+- Runner CLI/notebook ghi file tạm, đóng file rồi công bố result hoàn tất; không coi thao tác sync Drive là atomic.
 - Import chỉ nhận file đủ bytes, parse được, checksum đúng; file đang chuyển được bỏ qua và báo chờ.
 - Import từng result trong transaction và lưu checkpoint theo job/chunk/hash; crash không nhận nửa result.
 - Import lại cùng result là no-op; cùng job/chunk nhưng payload khác đưa vào conflict, không ghi đè.
@@ -163,6 +167,7 @@ Schema có `schema_version`; validator từ chối version/field lạ, kiểu sa
 ## 9. Lỗi, giới hạn và ranh giới tin cậy
 
 - Retry chỉ lỗi tạm thời như timeout/rate limit/network; đề xuất tối đa 3 lần với backoff và jitter.
+- Không tự cấp lại GPU vô hạn hoặc vượt trần thử/ngân sách; MVP ưu tiên người dùng bấm resume sau mất phiên.
 - Không retry tự động lỗi quyền truy cập, schema, checksum, model không tương thích hoặc input vượt context.
 - Lỗi OOM dừng để giảm batch/chunk hoặc đổi model; thay cấu hình phải tạo snapshot mới.
 - Timeout không chứng minh provider chưa xử lý; dùng request ID/idempotency khi provider hỗ trợ.
@@ -191,7 +196,9 @@ Mẫu benchmark: một dòng mỗi chương/ứng viên, thêm 10 dòng trước
 - P1 kiểm thử fake provider từ TXT tới export sau restart; duplicate import không nhân dữ liệu.
 - Fault tests: crash giữa import, file thiếu bytes/checksum sai, result tới chậm/trùng/xung đột.
 - Thử sửa glossary và sửa tay trong khi job cũ đang chạy; không mất sửa tay, stale được nhận diện.
-- P2 thử notebook ngắt runtime, load lại model và resume chỉ từ result lưu bền vững.
+- P2-03 kiểm chứng CLI trên WSL/tài khoản thực: auth, GPU/quota, truyền file, checkpoint ngoài VM và ngắt/resume.
+- P2-04 chỉ làm script điều phối sau khi CLI đạt; thử ngắt runner CLI/notebook, load lại model và resume chỉ từ result lưu bền vững.
+- P3 nối script đã kiểm chứng vào nút Dịch, tiến độ và resume; nhận đủ result thì chuyển sang review, duyệt/export chính thức vẫn do người dùng chủ động.
 - EPUB fixture có spine khác tên file, ảnh, link, ký tự đặc biệt; xuất phải giữ cấu trúc hợp lệ.
 - P3 thử lưu đồng thời hai tab và hiển thị lỗi bằng bàn phím/screen reader cơ bản.
 - P4 thử redirect tới mạng nội bộ, URL ngoài site và giới hạn tải; không chỉ kiểm thử trang đẹp.
@@ -199,6 +206,7 @@ Mẫu benchmark: một dòng mỗi chương/ứng viên, thêm 10 dòng trước
 
 ## 11. Cơ sở tham khảo và giới hạn bằng chứng
 
+- [Colab CLI](https://github.com/googlecolab/google-colab-cli): phương án điều phối tạm cho P2-03/P2-04, chưa chạy hoặc xác minh trên WSL/tài khoản thực.
 - [Colab FAQ](https://research.google.com/colaboratory/faq.html): giới hạn runtime/tài nguyên không phải cam kết always-on.
 - [SQLite qua mạng](https://sqlite.org/useovernet.html): cơ sở để DB ở local, không mở chung qua Drive.
 - [Colab VS Code](https://github.com/googlecolab/colab-vscode): tùy chọn tương tác, không biến Colab thành worker bền vững.

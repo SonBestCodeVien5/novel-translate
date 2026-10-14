@@ -1,0 +1,7 @@
+# Mẫu để MERGE vào .codex/config.toml; không ghi đè cấu hình hiện có.
+# Không thay model của main hoặc thiết lập permission/sandbox.
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 2
+default_subagent_model = "gpt-6.1-sol"
+default_subagent_reasoning_effort = "low"

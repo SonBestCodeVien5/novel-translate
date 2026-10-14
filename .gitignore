@@ -34,3 +34,5 @@ __pycache__/
 .playwright-mcp/
 node_modules/
 dist/
+*.egg-info/
+build/

@@ -161,7 +161,7 @@ def validate_result(result, chunk, run_hash):
         raise DomainError('Output exceeds reserve.')
     if result['status'] not in ('technical_complete', 'needs_review', 'failed'):
         raise DomainError('Invalid result status.')
-    if result['status'] == 'technical_complete' and (not result['translated_text'].strip() or result['finish_reason'] != 'eos' or result['error'] is not None):
+    if result['status'] == 'technical_complete' and (not result['translated_text'].strip() or not result['raw_output_ids'] or result['finish_reason'] != 'eos' or result['error'] is not None):
         raise DomainError('Incomplete output marked complete.')
     if result['checksum'] != digest({k: v for k, v in result.items() if k != 'checksum'}):
         raise DomainError('Result checksum mismatch.')

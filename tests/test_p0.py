@@ -128,6 +128,13 @@ class P0Tests(unittest.TestCase):
                 run(self.plan, output, self.generate)
         self.assertEqual(self.calls, 0)
 
+    def test_empty_raw_output_cannot_be_checkpointed_as_complete(self):
+        def generate(_chunk):
+            return {'translated_text': 'Bản dịch giả.', 'raw_output_ids': [], 'finish_reason': 'eos'}
+        with self.assertRaises(DomainError):
+            run(self.plan, self.output, generate, 1)
+        self.assertEqual(list((self.output / 'results').glob('*.json')) if (self.output / 'results').exists() else [], [])
+
     def test_drive_unsupported_directory_fsync_verifies_readback(self):
         import os
         original = os.fsync

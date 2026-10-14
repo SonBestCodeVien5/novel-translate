@@ -1,10 +1,10 @@
 # Làm việc trong novel-translate
 
-Đọc `docs/WORKFLOW.md` trước khi làm việc; đọc `docs/PLAN.md` và `docs/ROADMAP.md`
-khi quyết định phạm vi. Khi cần bối cảnh tổng thể, xem `docs/PROJECT_KNOWLEDGE.md`;
+Đọc `docs/WORKFLOW.md`, rồi `docs/HANDOFF.md` trước khi làm việc; chỉ đọc
+phần liên quan của `docs/PLAN.md` và `docs/ROADMAP.md` khi quyết định phạm vi. Khi cần bối cảnh tổng thể, xem `docs/PROJECT_KNOWLEDGE.md`;
 đây là tài liệu tham khảo, không thay PLAN/ROADMAP hoặc quy tắc làm việc.
 Repo đã có ứng dụng local P1 dùng provider giả; xem `docs/P1.md` cho bằng chứng
-và giới hạn, chưa có provider thật hoặc Colab.
+và giới hạn. Notebook P0 tự chứa mã đã có, chưa có kết quả model thật; xem HANDOFF.
 Khi triển khai hoặc kiểm tra pipeline dịch, glossary, checkpoint hay import/export,
 đọc rõ `codex-setup/skills/novel-translation/SKILL.md`; đây là bản staging,
 chưa được Codex tự khám phá như skill đã cài.
@@ -52,3 +52,15 @@ chưa được Codex tự khám phá như skill đã cài.
   quyền. Fixture về sau phải nhỏ, giả lập hoặc có quyền sử dụng.
 - Kết luận phải phân biệt việc đã kiểm tra với kế hoạch; nêu ngắn phần chưa kiểm
   tra và rủi ro còn lại. Không claim ứng dụng/test hoạt động khi chưa triển khai.
+
+## Crawling rules
+
+Do not use requests only.
+
+For protected websites:
+- use Playwright
+- support cookies
+- support retry
+- save checkpoint
+
+Crawler must be resumable.

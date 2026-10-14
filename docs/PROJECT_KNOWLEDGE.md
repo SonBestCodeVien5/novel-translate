@@ -2,8 +2,9 @@
 
 ## Trạng thái và cách đọc
 
-Repo đang triển khai ứng dụng local P1 và test với provider giả; chưa có notebook,
-provider thật hoặc kết quả benchmark. [P1.md](P1.md) ghi bằng chứng/giới hạn
+Repo có ứng dụng local P1 và test với provider giả; đang chuẩn bị P0 bằng
+notebook tự chứa mã, chưa có provider thật trong app hoặc kết quả benchmark.
+Trạng thái vận hành mới nhất nằm ở [HANDOFF.md](HANDOFF.md). [P1.md](P1.md) ghi bằng chứng/giới hạn
 cụ thể. Nội dung bên dưới mô tả hướng thiết kế, không cam kết chất lượng.
 
 - Tài liệu này: bối cảnh, mục tiêu và các lựa chọn tổng thể.
@@ -96,8 +97,9 @@ Snapshot phải chứa dữ liệu cần chạy, không chỉ hash hoặc tên r
 Chất lượng được đánh giá bằng review tiếng Việt và thời gian sửa thực tế;
 checker kỹ thuật không chứng minh bản dịch đã đủ ý hoặc tự nhiên.
 
-Model chưa được chọn. Các họ model mã nguồn mở và API là ứng viên cần đánh giá,
-không có bảng xếp hạng chất lượng mặc định. Quyền truy cập, giấy phép, tokenizer,
+Model chưa được chọn. Hai ứng viên P0 là Qwen3-4B-Instruct-2507 và
+Qwen2.5-7B-Instruct; revision và cấu hình ở [P0_MODELS.md](P0_MODELS.md).
+Chưa có bảng xếp hạng chất lượng thực đo. Quyền truy cập, giấy phép, tokenizer,
 template, VRAM, context và chi phí phải xác nhận theo ứng viên và môi trường thật.
 Các liên kết tham khảo và giới hạn bằng chứng hiện có nằm ở cuối PLAN.
 
@@ -111,8 +113,9 @@ Các liên kết tham khảo và giới hạn bằng chứng hiện có nằm �
 | P3 | UI Dịch/tiến độ/resume, review/glossary, conflict/revision, backup/restore và accessibility |
 | P4 | Crawler đúng một website có fixture, kiểm tra truy cập và SSRF |
 
-Bước dịch thật cần qua P0: còn thiếu mẫu nguồn hợp lệ, hai ứng viên và người
-review. Ngôn ngữ EN → VI và ngân sách 0 đồng đã chốt. Chưa có phép đo tốc độ,
+Bước dịch thật cần qua P0: đã có hai ứng viên và người dùng tự review; còn thiếu
+ch03–ch05, xác minh quyền nguồn, văn phong chi tiết và trần thử nghiệm.
+Ngôn ngữ EN → VI và ngân sách 0 đồng đã chốt. Chưa có phép đo tốc độ,
 chi phí hoặc chất lượng model.
 P1 có thể dùng fake provider để kiểm tra luồng dữ liệu mà không cần GPU.
 Chi tiết acceptance và exit theo ROADMAP; bảng trên chỉ tóm tắt.

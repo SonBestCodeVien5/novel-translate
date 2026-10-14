@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "corpus_id": "webnovel-27050623305192205-ch01-ch05-v1",
+  "book_url": "https://www.webnovel.com/vi/book/27050623305192205/72613479139302959",
+  "rights_status": "unverified",
+  "rights_evidence": null,
+  "source_status": "partial: user supplied ch01/ch02 manually; selected public page returned HTTP 403 on 2026-10-14; ch03/ch04/ch05 not acquired; no bypass attempted",
+  "chapters": [
+    {
+      "id": "ch01",
+      "title": "Prologue",
+      "url": "https://www.webnovel.com/vi/book/27050623305192205/72613479139302959",
+      "availability": "available",
+      "raw_path": null,
+      "text_path": "data/p0/text/ch01.txt",
+      "raw_sha256": null,
+      "text_sha256": "4e1ff2062651d36088c72bfb3917132010f8cf1242718accd64b83be6d7b9221",
+      "characters": 8867,
+      "words": 1660,
+      "tags": [
+        "dialogue",
+        "names",
+        "pronouns",
+        "description"
+      ],
+      "acquisition": "manual user-supplied TXT; original raw HTML unavailable",
+      "bytes": 8889,
+      "source_language": "en",
+      "heading_language": "vi"
+    },
+    {
+      "id": "ch02",
+      "title": "The Lazy Prince Picks Up a Sword (1)",
+      "url": "https://en.webnovel.com/book/27050623305192205/72613975744902050",
+      "availability": "available",
+      "raw_path": null,
+      "text_path": "data/p0/text/ch02.txt",
+      "raw_sha256": null,
+      "text_sha256": "8807ab9a2d8b904ab9e6ac0ca18f6ad6fe9a5e760108cd1bbd70a3859bc0beb6",
+      "characters": 8774,
+      "words": 1592,
+      "tags": [
+        "dialogue",
+        "names",
+        "pronouns",
+        "description"
+      ],
+      "acquisition": "manual user-supplied TXT; original raw HTML unavailable",
+      "bytes": 8826,
+      "source_language": "en",
+      "heading_language": "vi"
+    },
+    {
+      "id": "ch03",
+      "title": null,
+      "url": null,
+      "availability": "missing",
+      "raw_path": null,
+      "text_path": null,
+      "raw_sha256": null,
+      "text_sha256": null,
+      "characters": null,
+      "words": null,
+      "tags": [],
+      "acquisition": "not acquired; chapter URL/title not verified"
+    },
+    {
+      "id": "ch04",
+      "title": null,
+      "url": null,
+      "availability": "missing",
+      "raw_path": null,
+      "text_path": null,
+      "raw_sha256": null,
+      "text_sha256": null,
+      "characters": null,
+      "words": null,
+      "tags": [],
+      "acquisition": "not acquired; chapter URL/title not verified"
+    },
+    {
+      "id": "ch05",
+      "title": null,
+      "url": null,
+      "availability": "missing",
+      "raw_path": null,
+      "text_path": null,
+      "raw_sha256": null,
+      "text_sha256": null,
+      "characters": null,
+      "words": null,
+      "tags": [],
+      "acquisition": "not acquired; chapter URL/title not verified"
+    }
+  ],
+  "coverage": {
+    "dialogue": true,
+    "names": true,
+    "pronouns": true,
+    "description": true,
+    "longest_chapter": null,
+    "multi_chunk_proven": false,
+    "long_budget_exceeded": null,
+    "scope": "Observed in supplied ch01/ch02 only; full five-chapter coverage and longest chapter remain unverified."
+  },
+  "previous_source": {
+    "book_url": "https://novelfull.net/reformation-of-the-deadbeat-noble.html",
+    "numbering": "chapter 1–5 excluding Prologue",
+    "source_status": "No full text acquired; chapter 1 HTTP 403"
+  },
+  "numbering": "Webnovel chapters 1–5 including Prologue; preserves supplied ch01/ch02; differs from previous NovelFull selection",
+  "rights_note": "Private preparation only; user authorization to continue is not evidence of translation/distribution rights."
+}

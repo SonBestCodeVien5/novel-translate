@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "language": "EN→VI",
+  "budget_money": 0,
+  "reviewer": "user",
+  "confirmed": {
+    "no_omissions": true,
+    "all_chunks_complete": true,
+    "critical_meaning_errors_after_review": 0,
+    "minimum_generation_plus_editing_saving_fraction": 0.25
+  },
+  "pending": {
+    "style": "Đề xuất: tiếng Việt tự nhiên, giữ giọng nhân vật và tên riêng; chưa chốt chi tiết",
+    "attempts_per_model": 2,
+    "free_sessions_total": 4
+  },
+  "measurements_status": "not_run",
+  "decision": null
+}

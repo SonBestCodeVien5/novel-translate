@@ -5,7 +5,7 @@ theo phiên ở giai đoạn sau. Ngân sách đã chốt: **0 đồng**.
 
 Bản đầu P1 hỗ trợ TXT với **provider giả**, dùng để kiểm tra luồng nhập,
 checkpoint, review và xuất. Nội dung có nhãn `FAKE`, không phải bản dịch thật.
-Chưa có provider thật, EPUB, Colab, crawler hoặc benchmark chất lượng. Provider thật là như sau: [https://novelfull.net/reformation-of-the-deadbeat-noble.html]
+Chưa có provider thật trong app, EPUB, crawler hoặc kết quả benchmark chất lượng. Notebook đã lưu GPUcheck Tesla T4, chưa có bằng chứng model đã chạy. Đã chuẩn bị [notebook P0](notebooks/p0_benchmark.ipynb) tự chứa mã, chỉ cần corpus riêng trên Drive; chưa chạy model. Nguồn người dùng chọn cho P0 là [Reformation of the Deadbeat Noble](https://www.webnovel.com/vi/book/27050623305192205/72613479139302959), theo thứ tự Webnovel 1–5 **có Prologue**. Người dùng đã cung cấp hai TXT đầu, thân tiếng Anh với heading tiếng Việt; còn thiếu chương 3–5 và chưa chứng minh quyền dùng nguồn.
 
 ## Chạy local
 
@@ -52,12 +52,17 @@ Bằng chứng và giới hạn của đợt triển khai nằm trong [P1.md](do
 
 ## Tài liệu
 
+Phiên mới đọc [AGENTS.md](AGENTS.md) → [WORKFLOW](docs/WORKFLOW.md) →
+[HANDOFF](docs/HANDOFF.md); chỉ mở phần PLAN/ROADMAP liên quan nhiệm vụ.
+
 - [Kế hoạch và hợp đồng dữ liệu](docs/PLAN.md)
 - [Roadmap và cổng kiểm chứng](docs/ROADMAP.md)
-- [Phiếu benchmark P0 chưa chạy](docs/P0_BENCHMARK.md)
+- [Hướng dẫn và phiếu benchmark P0 chưa chạy](docs/P0_BENCHMARK.md)
+- [Hai ứng viên model P0](docs/P0_MODELS.md)
 - [Tổng quan](docs/PROJECT_KNOWLEDGE.md)
 - [Workflow](docs/WORKFLOW.md) và [quy tắc agent](AGENTS.md)
 
-P0 còn cần mẫu hợp lệ, hai ứng viên model miễn phí và người review trước khi
-chạy/chấm. Colab miễn phí phải được thử trên tài khoản thực; chưa có bằng chứng
-về GPU/quota, tốc độ hoặc chất lượng.
+P0 có hai ứng viên và người dùng review; còn thiếu ba TXT (ch03–ch05), xác minh
+quyền nguồn, văn phong chi tiết và trần thử nghiệm trước khi chạy/chấm. Output GPUcheck đã lưu ghi Tesla T4; chưa xác nhận runtime hiện tại, quota,
+tốc độ hoặc chất lượng model. Corpus smoke đã upload và xác minh trên Drive;
+trạng thái và thao tác tiếp theo ở HANDOFF.

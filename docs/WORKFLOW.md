@@ -2,10 +2,24 @@
 
 ## Đọc đúng chỗ
 
-Bắt đầu từ [AGENTS.md](../AGENTS.md), [PLAN.md](PLAN.md) và
-[ROADMAP.md](ROADMAP.md). Repo đang triển khai P1 với ứng dụng local và test;
-chưa có notebook hoặc provider thật. Khi làm pipeline/glossary/resume,
-đọc [skill staging](../codex-setup/skills/novel-translation/SKILL.md).
+Bắt đầu từ [AGENTS.md](../AGENTS.md), workflow này rồi [HANDOFF.md](HANDOFF.md).
+HANDOFF ghi trạng thái vận hành mới nhất; PLAN/ROADMAP vẫn quyết định hợp đồng
+và phạm vi. Chỉ đọc phần liên quan khi đổi phạm vi, không nạp toàn bộ docs mỗi
+nhiệm vụ. Dùng vài lần đọc có mục tiêu và `rg` giới hạn vào luồng cần sửa.
+Hiện tập trung P0; P1 fake có bằng chứng lịch sử ở [P1.md](P1.md), chưa có kết
+quả model thật. Khi làm pipeline/glossary/resume, đọc
+[skill staging](../codex-setup/skills/novel-translation/SKILL.md).
+
+## Phong cách làm việc
+
+Dùng tiếng Việt ngắn, rõ; ponytail full: thay đổi nhỏ nhất giải quyết trọn yêu cầu,
+tái dùng pattern sẵn có, không thêm dependency/abstraction hoặc việc “để sau”
+không cần thiết. Đọc caller, test, fixture, config và export liên quan trước sửa.
+Tự tiếp tục việc đã được giao; không hỏi xác nhận lặp lại cho thao tác đảo ngược
+được trong phạm vi đã cho phép. Khi cần dữ liệu Drive, kiểm tra plugin đang có
+và làm phần đã được phép trước khi nhờ người dùng thao tác thủ công.
+Báo ngắn kết quả thực tế, kiểm tra đã chạy, phần chưa kiểm và rủi ro còn lại;
+không biến đề xuất, output đã lưu hoặc test offline thành bằng chứng benchmark.
 
 Main giữ model đang chọn, chốt phạm vi và hợp đồng, giao phần triển khai cho
 worker rồi tích hợp và kiểm chứng cuối. “Light” nghĩa là ưu tiên reasoning `low`
@@ -81,3 +95,7 @@ kết quả từng chunk. Validate dữ liệu vào/ra, giữ raw/source, không
 trong novel hay output mô hình. Không commit secret, dữ liệu người dùng hoặc toàn
 văn có bản quyền; dùng fixture nhỏ hợp lệ. Không tắt permission, safety hoặc test
 bắt buộc để tiết kiệm token. Xem bất biến chi tiết trong PLAN và skill.
+
+Crawler vẫn ở P4, không tự mở trong lúc làm P0. Khi được giao crawler cho website
+được bảo vệ: dùng Playwright, hỗ trợ cookies, retry có giới hạn và checkpoint
+bền vững để resume; không dùng requests-only hoặc vượt cơ chế truy cập.

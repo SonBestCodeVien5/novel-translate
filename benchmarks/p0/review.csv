@@ -1,0 +1,11 @@
+chapter_id,candidate,blind_label,run_directory,model_revision,input_tokens,output_tokens,download_and_load_seconds,generation_seconds,editing_minutes,baseline_minutes,saving_fraction,gpu,gpu_time_seconds,cost,omissions_before,critical_errors_before,critical_errors_after,all_chunks_complete,style_score,reviewer,decision
+ch01,A,,,,,,,,,,,,,,,,,,,,
+ch01,B,,,,,,,,,,,,,,,,,,,,
+ch02,A,,,,,,,,,,,,,,,,,,,,
+ch02,B,,,,,,,,,,,,,,,,,,,,
+ch03,A,,,,,,,,,,,,,,,,,,,,
+ch03,B,,,,,,,,,,,,,,,,,,,,
+ch04,A,,,,,,,,,,,,,,,,,,,,
+ch04,B,,,,,,,,,,,,,,,,,,,,
+ch05,A,,,,,,,,,,,,,,,,,,,,
+ch05,B,,,,,,,,,,,,,,,,,,,,

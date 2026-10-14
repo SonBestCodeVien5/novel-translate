@@ -1,46 +1,160 @@
-# Phiếu chuẩn bị benchmark P0
+# Chuẩn bị benchmark P0
 
-Trạng thái: **chưa chạy**. P1 dùng provider giả để kiểm tra dữ liệu; không phải
-bằng chứng về chất lượng dịch, tốc độ model hoặc chi phí GPU/API.
+**Chưa chạy model benchmark, chưa có go/no-go.** Có runner/notebook thử nghiệm độc lập;
+ứng dụng P1 vẫn dùng provider giả. Không mở tích hợp provider, P2 hoặc crawler P4.
 
-## Chốt trước khi chạy
+Người dùng chọn EN → VI, ngân sách 0 đồng, Colab free, tự review; đã đồng ý:
+không bỏ đoạn, mọi chunk hoàn tất, không còn lỗi sai ý trọng yếu sau review,
+thời gian sinh + sửa giảm ít nhất 25% so với dịch thủ công cùng nguồn.
+[criteria.json](../benchmarks/p0/criteria.json) tách ngưỡng này khỏi đề xuất chưa chốt:
+văn phong tiếng Việt tự nhiên giữ giọng/tên; tối đa 2 lần thử/model, 4 phiên free.
+Không chạy/chấm chính thức trước khi chốt văn phong và trần thử nghiệm.
+Hai ứng viên, revision, giấy phép và ước tính VRAM: [P0_MODELS.md](P0_MODELS.md).
 
-| Thông tin | Giá trị cần người dùng xác nhận |
-| --- | --- |
-| Ngôn ngữ | EN → VI, xác nhận ngày 14/10/2026 |
-| Nguồn 5 chương | Chưa có; chỉ dùng nội dung có quyền sử dụng |
-| Ứng viên A / revision | Chưa chọn |
-| Ứng viên B / revision | Chưa chọn |
-| Văn phong và người review | Chưa chốt |
-| Trần chi phí và số lần thử | 0 đồng, Colab miễn phí theo phiên; số lần thử chưa chốt |
-| Thiết bị/GPU, VRAM, tokenizer/template | Ghi từ phiên chạy thực |
+## Nguồn và chuẩn bị offline
 
-Ngưỡng đề xuất cần chốt trước khi chấm: không bỏ đoạn, mọi chunk hoàn tất,
-không còn lỗi sai ý trọng yếu sau review; tổng thời gian dịch và sửa giảm ít
-nhất 25% so với baseline trên cùng mẫu. Chất lượng văn phong và trần chi phí
-do người dùng chốt. Không coi ô trống là số 0.
+Nguồn hiện tại: [Reformation of the Deadbeat Noble trên Webnovel](https://www.webnovel.com/vi/book/27050623305192205/72613479139302959).
+Lấy **thứ tự Webnovel 1–5, có Prologue** để giữ đúng hai file người dùng cung cấp.
+Nguồn cũ NovelFull chọn chapter 1–5 không Prologue; provenance cũ được ghi riêng
+trong [source_manifest.json](../benchmarks/p0/source_manifest.json), không trộn hai cách đánh số.
 
-## Kết quả thực đo
+Đã có `data/p0/text/ch01.txt` (Prologue, 8.889 byte, 1.660 từ) và `ch02.txt`
+(The Lazy Prince Picks Up a Sword (1), 8.826 byte, 1.592 từ). Đây là TXT chép tay
+của người dùng, thân tiếng Anh dù heading tiếng Việt; giữ nguyên bytes/newline.
+Manifest ghi hash TXT, counts và coverage quan sát ở hai chương; raw HTML/hash
+là null vì không có bản HTML gốc của thao tác chép tay. Chương 3–5 chưa có;
+tiêu đề và URL riêng chưa xác minh nên để null, không suy từ NovelFull.
+Trang công khai được chọn trả HTTP 403 khi tải trực tiếp ngày 14/10/2026;
+công cụ web không mở được trang, đã dừng và không vượt chặn truy cập.
 
-Mẫu cần bao gồm đối thoại, tên riêng, xưng hô, miêu tả và một chương dài.
-Ghi config tái chạy: model/tokenizer revision, template, tham số sinh,
-lượng tử hóa, chunk/context budget và phần cứng. Token chưa đo ghi `null`.
+`rights_status=unverified`: chưa có bằng chứng quyền dịch/phân phối của chủ quyền.
+Cho phép tiếp tục chỉ là chuẩn bị riêng, không chứng minh nguồn licensed/cleared.
+Không đăng toàn văn vào Git. Hai chương hiện có chỉ đủ smoke test; **chưa đủ
+corpus benchmark chính thức năm chương**. Smoke output dùng `corpus-smoke.json`
+và phải được đánh dấu riêng; không chấm hoặc suy ra go/no-go từ smoke.
 
-| Chương / ứng viên | Revision / cấu hình | Token vào / ra | Load / dịch (s) | Sửa tay (phút) | Baseline (phút) | Chi phí / GPU time | Lỗi / đạt ngưỡng |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 / A | | | | | | | |
-| 1 / B | | | | | | | |
-| 2 / A | | | | | | | |
-| 2 / B | | | | | | | |
-| 3 / A | | | | | | | |
-| 3 / B | | | | | | | |
-| 4 / A | | | | | | | |
-| 4 / B | | | | | | | |
-| 5 / A | | | | | | | |
-| 5 / B | | | | | | | |
+Khi có đúng năm TXT UTF-8 được phép sử dụng, đặt riêng tại `data/p0/text/ch01.txt`
+đến `ch05.txt`; giữ raw riêng trong `data/p0/raw/`. Người chuẩn bị kiểm tra từng
+file đúng chapter, không menu/quảng cáo, ghi metadata/hash và căn cứ quyền vào
+bản manifest riêng; không tự cắt/chuẩn hóa source. Trước khi chạy lệnh đủ năm
+chương, cập nhật manifest: tiêu đề ch03–ch05 từ file thực, URL nếu biết và hash
+TXT thực; các tiêu đề null hiện tại sẽ bị từ chối. Không sinh tiêu đề/nội dung giả.
+Lệnh offline cho đủ năm chương (chưa chạy vì thiếu ch03–ch05):
 
-## Quyết định sau chấm
+```bash
+python benchmarks/p0/prepare_corpus.py --manifest benchmarks/p0/source_manifest.json --output data/p0/corpus.json data/p0/text/ch01.txt data/p0/text/ch02.txt data/p0/text/ch03.txt data/p0/text/ch04.txt data/p0/text/ch05.txt
+```
 
-Chưa có quyết định go/no-go. Điền lỗi đại diện và bản sửa bằng đoạn nhỏ được
-phép chia sẻ; giữ nguồn đầy đủ ngoài Git. Chỉ chọn provider thật khi có bằng
-chứng đạt ngưỡng đã chốt trong [ROADMAP.md](ROADMAP.md).
+Script không truy cập mạng, giữ UTF-8/newline nguyên trạng, kiểm tra hash nếu
+manifest có, từ chối rỗng/sai encoding/thứ tự và không ghi đè corpus đã có.
+Giới hạn mỗi chapter 4 MiB UTF-8, toàn corpus JSON canonical 16 MiB.
+Corpus chứa provenance/rights chưa xác minh và hash text. Bản raw HTML/hash là
+metadata riêng, không được suy từ hash TXT. `data/` bị Git ignore; corpus,
+plan/results chứa toàn văn nên cũng chỉ lưu riêng/Drive, không commit.
+
+Hai chương đã đọc có dialogue/names/pronouns/description; coverage này chỉ áp dụng
+cho phần đã có. Cần đọc thêm ba chương và ghi chapter dài nhất toàn bộ corpus. Chưa xác minh cả năm đạt độ dài đại diện; người dùng cần
+đo/ghi token của nguyên chapter qua tokenizer/template/glossary thực và cộng
+reserve output: phải vượt budget chạy 4,096 token để chứng minh ca dài.
+Có >1 chunk ở target 768 chỉ chứng minh chunking, chưa chứng minh vượt context.
+Không cần vượt context công bố 262K/32K của model. Runner tự in và lưu
+`chapter_measurements` cho từng chương/model: `full_input_tokens`,
+`output_reserve`, `context_tokens`, `exceeds_context`; không cần chạy đoạn đo riêng.
+Phép đo chỉ in ID/count, không in toàn văn. Nếu cả năm không có ca vượt budget,
+ghi thiếu coverage; không lấy chương thứ sáu hoặc nhân bản nguồn.
+
+## Baseline và review
+
+Copy [baseline.csv](../benchmarks/p0/baseline.csv), [review.csv](../benchmarks/p0/review.csv),
+[errors.csv](../benchmarks/p0/errors.csv) vào `data/p0/review/` trước khi điền.
+Năm dòng baseline và mười dòng A/B là phiếu trống, không phải kết quả; ô trống
+CSV và null JSON là chưa đo, không phải 0. Giữ draft/final, đoạn lỗi và bản sửa
+ở đường dẫn riêng; không đưa nội dung novel vào CSV được commit.
+Nếu hai chương smoke sẽ dùng lại trong benchmark, không xem bản dịch smoke
+trước khi hoàn thành baseline dịch tay của chính hai chương đó.
+
+1. Người dùng dịch tay **đúng toàn bộ năm chương**, không hỗ trợ model, trước
+   khi xem output; bấm giờ drafting + review, giữ draft/final riêng.
+2. Randomize nhãn mù A/B và giữ khóa nhãn riêng; cân bằng thứ tự xem/sửa theo
+   chương (A trước/B trước luân phiên, thứ tự ban đầu chọn ngẫu nhiên).
+   Cùng reviewer, rubric, nguồn và glossary; không sửa prompt giữa hai ứng viên.
+3. Ghi lỗi trước sửa và sau sửa theo source/chunk/span, correction và severity.
+   Categories: omission/addition, meaning, name, pronoun, dialogue, style.
+   Critical: đảo/sai ý quan trọng, mất đoạn, sai người nói/đối tượng làm đổi ý;
+   major: lỗi cần sửa để đọc đúng; minor: diễn đạt/nhất quán nhỏ. Chấm văn phong
+   1–5 theo thang người dùng chốt trước; không coi technical_complete là đạt chất lượng.
+4. Giờ sửa tính cả đọc so nguồn, sửa tên/xưng hô/ý và review cuối; ghi riêng
+   generation/load/wall time. `saving = 1 - (generation_minutes + editing_minutes)
+   / baseline_total_minutes`. Không cộng load vào metric đã chốt, nhưng báo riêng
+   end-to-end (load + sinh + sửa), download, GPU time và thời gian gián đoạn.
+   Không tính saving khi thiếu baseline, thời gian hoặc chunk.
+5. Chỉ đạt nếu mọi chương/all chunks đạt technical và review, không bỏ đoạn,
+   zero critical sau review, tổng saving năm chương ≥25%, đạt style đã chốt.
+   Ghi cả tổng và mỗi chương, không lấy trung bình tỷ lệ thay tổng thời gian.
+
+Reviewer đã biết nguồn sau baseline và nhớ output đầu có thể làm lần sau nhanh
+hơn: counterbalance giảm nhưng không loại learning effect; báo hạn chế này.
+
+## Chạy thật bằng notebook người dùng mở
+
+[Notebook P0](../notebooks/p0_benchmark.ipynb) tự chứa mã runner/validator;
+không cần upload hoặc copy repo. Upload notebook lên Colab, chọn GPU miễn phí,
+chạy kiểm tra GPU trước khi cài package, rồi chạy package pins và bootstrap
+mã vào `/content/p0-code`. Notebook không chứa toàn văn novel hoặc SQLite.
+Mount Drive bằng auth của người dùng, cùng tài khoản đã nhận corpus. Plugin
+Drive đã upload và đọc lại xác minh `MyDrive/p0/corpus-smoke.json` ngày
+14/10/2026: 19.102 byte, SHA-256
+`42db593b9738a93129c11da9a75e93c6b1c697ea72183b8eab16844a38ae9957`.
+Không cần upload lại corpus hiện có; chi tiết riêng nằm trong `data/p0/`.
+Đường dẫn Colab mặc định là `/content/drive/MyDrive/p0/corpus-smoke.json`.
+
+Đã tạo corpus smoke riêng từ đúng hai TXT, không sửa nguồn:
+
+```bash
+.venv/bin/python benchmarks/p0/prepare_corpus.py --smoke --manifest benchmarks/p0/source_manifest.json --output data/p0/corpus-smoke.json data/p0/text/ch01.txt data/p0/text/ch02.txt
+```
+
+Notebook mặc định `LIMIT = 1`, chỉ thử một chunk; output tự tạo tại
+`/content/drive/MyDrive/p0/runs/<model-short>-<snapshotsha256>` từ snapshot thực.
+Sau reconnect, cùng corpus/model/revision/config sẽ dùng lại output này;
+đổi `LIMIT = None` khi muốn chạy nốt smoke. Kết quả vẫn mang nhãn smoke,
+không được dùng làm benchmark chính thức. Khi đủ năm chương, tạo corpus chính
+bằng lệnh phía trên và đổi `CORPUS` trong notebook; snapshot mới dùng output riêng.
+Chạy A và B ở phiên tách biệt để không giữ hai model trong VRAM.
+Package pins chưa kiểm thử Colab; nếu thiếu GPU, lỗi quyền/OOM thì ghi lại và dừng,
+không mua tài nguyên hoặc retry vô hạn. Notebook người dùng lưu trước đó có GPUcheck `CUDA: True`, `GPU: Tesla T4`;
+metadata riêng ghi đây là output đã lưu do main quan sát, không phải xác nhận
+phiên đang sống hoặc model đã chạy. Phiên Colab của bạn chưa có công cụ điều khiển được kết nối
+với phiên làm việc này; thực thi notebook vẫn do bạn bấm chạy.
+
+Khi sửa runner/validator được nhúng, tái sinh notebook bằng
+`python3 benchmarks/p0/build_notebook.py` rồi chạy test offline liên quan.
+Notebook nhúng ba file mã tĩnh (`runner.py`, `app/bundles.py`, `app/__init__.py`),
+không cần repo trên Drive.
+
+CLI local `python benchmarks/p0/runner.py --help` chỉ kiểm tra giao diện;
+chạy model thật, checkpoint và reconnect vẫn cần người dùng thực thi notebook.
+
+Thử một chunk, giữ Drive checkpoint, ngắt runtime rồi load lại/run đúng lệnh
+với cùng snapshot (đổi `LIMIT = None` khi đã kiểm tra). Xác minh result hợp lệ được
+bỏ qua và chunk dở chạy lại; đây là **kiểm tra còn phải làm**, không claim đã đạt.
+Không đổi source/glossary/model/prompt trong output folder cũ; dùng run mới,
+không xóa hoặc ghi đè machine/manual artifacts. Partial/checksum/config mismatch
+phải dừng báo lỗi; failed/needs_review cần review và run mới có chủ đích.
+
+Runner lưu `plan.json`, từng `results/*.json`, `sessions/*.json`: revision,
+template/hash, source offsets/hash, token thực, timing, GPU/VRAM/software và
+peak CUDA; result có session_id liên kết facts phiên. Attention `eager` được pin.
+`session_seconds` chỉ là thời gian runner (từ tokenizer download), không gồm
+pip/mount/idle; người dùng bấm giờ toàn phiên được cấp GPU riêng cho GPU time.
+`load_seconds` gồm download + load; `download_seconds` null nếu
+không tách đo được, cost null nếu chưa có số liệu. Drive FUSE không bảo đảm
+POSIX durability: revalidate file/checksum sau reconnect, không coi sync là atomic.
+Các file này **không phải bundle import P1**; chưa import vào app.
+
+## Kết quả và quyết định
+
+Chưa có số liệu thật hay model được chọn. Báo cáo cuối phải đủ năm chương × hai
+ứng viên, nguồn/config bất biến, lỗi trước/sau, baseline, coverage chương dài,
+ngắt/resume, GPU/quota và chi phí thực. Chọn model chỉ khi ngưỡng chốt đạt;
+không đạt thì ghi no-go/đổi ứng viên, không tự mở phase kế tiếp.

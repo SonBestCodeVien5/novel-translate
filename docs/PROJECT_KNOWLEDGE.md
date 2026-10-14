@@ -20,8 +20,8 @@ chỉ thị làm việc, và không cần nạp toàn bộ vào mọi nhiệm v�
 
 Xây dựng công cụ cá nhân hỗ trợ nhập tiểu thuyết, tách chương, dịch bằng LLM,
 review/sửa bản dịch và xuất sách tiếng Việt. Người dùng đã xác nhận EN → VI,
-ngân sách 0 đồng và Colab miễn phí theo phiên ngày 14/10/2026. Văn phong và
-tiêu chí chất lượng vẫn cần chốt ở P0.
+ngân sách 0 đồng, Colab miễn phí theo phiên, văn phong tiếng Việt tự nhiên giữ
+giọng nhân vật/tên riêng, tối đa 2 lần thử/model và tổng 4 phiên ngày 14/10/2026.
 
 Giá trị mong muốn là giảm thời gian dịch và sửa mà vẫn giữ nghĩa, tên riêng,
 thuật ngữ, tính cách và xưng hô nhất quán. Giữ bản gốc và sửa tay là yêu cầu
@@ -107,14 +107,16 @@ Các liên kết tham khảo và giới hạn bằng chứng hiện có nằm �
 
 | Cổng | Kết quả cần chứng minh |
 | --- | --- |
-| P0 | Benchmark 5 chương × 2 ứng viên, ngưỡng chất lượng/chi phí chốt trước khi chấm |
+| P0 | Benchmark 5 chương × 2 ứng viên theo tiêu chí đã chốt; chưa có kết quả |
 | P1 | TXT qua fake provider, restart/resume, import idempotent và bảo toàn sửa tay |
 | P2 | Provider thật/EPUB; kiểm chứng CLI trên WSL rồi làm script điều phối, notebook fallback và phục hồi từ checkpoint ngoài VM |
 | P3 | UI Dịch/tiến độ/resume, review/glossary, conflict/revision, backup/restore và accessibility |
 | P4 | Crawler đúng một website có fixture, kiểm tra truy cập và SSRF |
 
-Bước dịch thật cần qua P0: đã có hai ứng viên và người dùng tự review; còn thiếu
-ch03–ch05, xác minh quyền nguồn, văn phong chi tiết và trần thử nghiệm.
+Bước dịch thật cần qua P0: đã có hai ứng viên, tiêu chí văn phong và trần thử
+nghiệm đã chốt, người dùng tự review; đã nhận đủ 5 TXT và upload/xác minh corpus
+full trên Drive. Còn xác minh URL ch03–ch05/quyền nguồn và hoàn thành baseline.
+Playwright gặp Cloudflare security verification nên mục lục chưa xác minh được.
 Ngôn ngữ EN → VI và ngân sách 0 đồng đã chốt. Chưa có phép đo tốc độ,
 chi phí hoặc chất lượng model.
 P1 có thể dùng fake provider để kiểm tra luồng dữ liệu mà không cần GPU.

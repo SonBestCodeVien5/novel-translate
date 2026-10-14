@@ -1,6 +1,8 @@
 # Kế hoạch triển khai app dịch novel
 
 Trạng thái: đã triển khai và kiểm thử luồng P1 với provider giả; P0 chưa benchmark.
+Người dùng mở riêng EPUB import CLI ngày 14/10/2026; đã triển khai parser/Store,
+chưa mở EPUB export/provider thật hoặc tự động điều phối Colab. Xem [EPUB_IMPORT](EPUB_IMPORT.md).
 Lộ trình và cổng quyết định: [ROADMAP.md](ROADMAP.md).
 Bước dịch thật tiếp theo cần qua P0; bằng chứng P1 nằm trong [P1.md](P1.md).
 
@@ -18,12 +20,12 @@ Bước dịch thật tiếp theo cần qua P0; bằng chứng P1 nằm trong [P
 
 | Quyết định | Thông tin cần có | Checkpoint |
 | --- | --- | --- |
-| Tiêu chí văn phong | Đã chốt EN → VI; còn cần mẫu bản dịch mong muốn | P0 |
+| Tiêu chí văn phong | Đã chốt: tiếng Việt tự nhiên, giữ giọng nhân vật và tên riêng | P0 |
 | Model và cách chạy | Hai ứng viên, quyền truy cập, giấy phép, VRAM | P0 |
-| Ngân sách | Đã chốt 0 đồng, Colab miễn phí theo phiên; còn cần số chương dự kiến | P0 |
+| Ngân sách | Đã chốt 0 đồng, Colab miễn phí theo phiên, tổng 4 phiên; tối đa 2 lần thử/model | P0 |
 | Máy local | Đã xác nhận WSL; cần RAM, dung lượng, distro và Python khả dụng | P0/P1 |
 | Website crawl đầu tiên | URL, quyền truy cập, cấu trúc chương | Trước P4 |
-| Chất lượng chấp nhận được | Ngưỡng sửa tay và lỗi trọng yếu | Chốt trước khi chấm P0 |
+| Chất lượng chấp nhận được | Đã chốt: không bỏ đoạn, mọi chunk hoàn tất, 0 lỗi sai ý trọng yếu sau review, saving tổng ≥25% | P0 |
 
 Thiếu các thông tin này không cản viết tài liệu hoặc làm fake provider ở P1.
 Không chọn model sản xuất hoặc hứa thời gian hoàn tất khi chưa qua P0.
@@ -79,6 +81,10 @@ Provider đầu tiên có cùng hợp đồng đầu vào/đầu ra với fake p
 
 ## 5. Dữ liệu tối thiểu và quyền sở hữu
 
+Schema SQLite đã triển khai (6 bảng) và đề xuất triển khai sau nằm ở
+[SQLITE_SCHEMA.md](SQLITE_SCHEMA.md); bảng dưới đây là hợp đồng mục tiêu,
+không phải danh sách cột hiện có.
+
 | Thực thể | Trường và ràng buộc chính |
 | --- | --- |
 | Book | id, tên, ngôn ngữ, định dạng, raw SHA-256, đường dẫn nguồn, import version |
@@ -109,6 +115,7 @@ Provider đầu tiên có cùng hợp đồng đầu vào/đầu ra với fake p
 - Đếm token bằng tokenizer đúng model, gồm template, glossary, context và output reserve.
 - Ghi input/output token bằng `null` nếu provider không cung cấp và chưa đo được; không ước lượng thành số thực đo.
 - Chunk quá dài phải chia lại trước khi gửi; không cắt âm thầm khi model trả thiếu.
+- Khi nối provider thật, tạo job plan bất biến theo tokenizer/budget; không âm thầm chia lại chunks/job cũ hoặc mất revision. Migration cần test bảo toàn nguồn/sửa tay.
 - Output dừng do max tokens hoặc nghi thiếu đoạn phải `failed`/`needs_review`, chưa tính hoàn tất cho job hoặc export chính thức.
 - Checker kỹ thuật không bảo đảm đủ ý về ngữ nghĩa; P0 và review của người đọc vẫn phải kiểm tra nội dung.
 - MVP dùng glossary và context nguồn trước đó có giới hạn, không phụ thuộc bản dịch chunk trước.
@@ -133,6 +140,7 @@ Schema có `schema_version`; validator từ chối version/field lạ, kiểu sa
 
 - Quy định một cách canonical hóa JSON cho hash; không hash phụ thuộc thứ tự key tùy ý.
 - Bundle tự chứa đủ prompt, glossary và context để runner CLI/notebook thực thi; hash/revision chỉ để kiểm chứng, không thay dữ liệu đầu vào.
+- P2 phải thống nhất bundle app/Colab trước: P0 plan/results/sessions JSON chưa nhập được vào SQLite; validator/provenance app hiện chỉ nhận fake. Không nối bằng cách đổi tên field; chốt version, real-provider provenance và test stale/error/sửa tay.
 - Chốt trước P1: JSON key tăng dần, separator gọn, UTF-8 không BOM, không NaN; hash SHA-256 lowercase hex.
 - ID là chuỗi UUID, ordinal là số nguyên từ 0, timestamp UTC RFC3339; text giữ nguyên Unicode, không tự normalize lúc hash.
 - Result checksum tính trên object bỏ trường checksum; manifest hash tính trên toàn manifest canonical, không tự chứa hash của chính nó.

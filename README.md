@@ -5,7 +5,7 @@ theo phiên ở giai đoạn sau. Ngân sách đã chốt: **0 đồng**.
 
 Bản đầu P1 hỗ trợ TXT với **provider giả**, dùng để kiểm tra luồng nhập,
 checkpoint, review và xuất. Nội dung có nhãn `FAKE`, không phải bản dịch thật.
-Chưa có provider thật trong app, EPUB, crawler hoặc kết quả benchmark chất lượng. Notebook đã lưu GPUcheck Tesla T4, chưa có bằng chứng model đã chạy. Đã chuẩn bị [notebook P0](notebooks/p0_benchmark.ipynb) tự chứa mã, chỉ cần corpus riêng trên Drive; chưa chạy model. Nguồn người dùng chọn cho P0 là [Reformation of the Deadbeat Noble](https://www.webnovel.com/vi/book/27050623305192205/72613479139302959), theo thứ tự Webnovel 1–5 **có Prologue**. Người dùng đã cung cấp hai TXT đầu, thân tiếng Anh với heading tiếng Việt; còn thiếu chương 3–5 và chưa chứng minh quyền dùng nguồn.
+Đã có [CLI nhập EPUB local](docs/EPUB_IMPORT.md); chưa có EPUB export, provider thật trong app, crawler hoặc kết quả benchmark chất lượng. Notebook đã lưu GPUcheck Tesla T4, chưa có bằng chứng model đã chạy. Đã chuẩn bị [notebook P0](notebooks/p0_benchmark.ipynb) tự chứa mã, chỉ cần corpus riêng trên Drive; chưa chạy model. Hai bản local nằm cùng thư mục `notebooks/`: [Qwen3](notebooks/p0_benchmark.ipynb) và [Qwen2.5](notebooks/p0_qwen25_benchmark.ipynb). Có thể mở file local trong VS Code, nhưng phải chọn Colab hosted GPU kernel hoặc mở trên Colab; mỗi runtime chạy một model. Nguồn mới người dùng chọn cho P0 là [Reformation of the Deadbeat Noble trên FreeWebNovel](https://freewebnovel.com/novel/reformation-of-the-deadbeat-noble), nhưng chưa xác minh được mục lục hay đối chiếu với hai TXT mẫu hiện có. Hai TXT được cung cấp có provenance Webnovel và theo thứ tự chương 1–5 **có Prologue**; đã đủ năm TXT, chưa chứng minh quyền dùng nguồn; ch03–ch05 chưa xác minh URL và khác cách viết tên.
 
 ## Chạy local
 
@@ -41,6 +41,16 @@ giữ để chẩn đoán; chúng có thể chứa nội dung sách. Không chia
 thư mục dữ liệu. P1 chưa có giao diện backup/restore; đừng xóa thư mục dữ liệu
 để khắc phục lỗi.
 
+## Nhập EPUB local
+
+```bash
+.venv/bin/python scripts/import_epub.py 'data/Reformat...at_Noble.epub' --data-dir data
+```
+
+Giữ EPUB gốc, parse thứ tự spine, lưu text chương trong SQLite cùng mapping
+XHTML riêng; import trùng không nhân sách. Không tạo job/dịch tự động. Xem
+[luồng EPUB và Colab](docs/EPUB_IMPORT.md); upload UI hiện vẫn chỉ nhận TXT.
+
 ## Kiểm tra
 
 ```bash
@@ -62,7 +72,9 @@ Phiên mới đọc [AGENTS.md](AGENTS.md) → [WORKFLOW](docs/WORKFLOW.md) →
 - [Tổng quan](docs/PROJECT_KNOWLEDGE.md)
 - [Workflow](docs/WORKFLOW.md) và [quy tắc agent](AGENTS.md)
 
-P0 có hai ứng viên và người dùng review; còn thiếu ba TXT (ch03–ch05), xác minh
-quyền nguồn, văn phong chi tiết và trần thử nghiệm trước khi chạy/chấm. Output GPUcheck đã lưu ghi Tesla T4; chưa xác nhận runtime hiện tại, quota,
-tốc độ hoặc chất lượng model. Corpus smoke đã upload và xác minh trên Drive;
+P0 có hai ứng viên và người dùng review; tiêu chí văn phong và giới hạn thử nghiệm
+đã chốt ngày 14/10/2026. Đã đủ năm TXT và chuẩn bị corpus full; còn xác minh quyền nguồn và
+baseline trước khi đọc/chấm output. Playwright gặp Cloudflare security verification ở
+cả Webnovel và FreeWebNovel, nên chưa xác minh TOC hay đối chiếu nguồn mới. Output GPUcheck đã lưu ghi Tesla T4; chưa xác nhận runtime hiện tại, quota,
+tốc độ hoặc chất lượng model. Hai notebook full đã lên Drive; corpus full đã upload và đọc lại xác minh sau xác nhận của người dùng. Corpus smoke cũ giữ nguyên;
 trạng thái và thao tác tiếp theo ở HANDOFF.

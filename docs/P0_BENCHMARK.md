@@ -1,22 +1,38 @@
 # Chuẩn bị benchmark P0
 
-**Chưa chạy model benchmark, chưa có go/no-go.** Có runner/notebook thử nghiệm độc lập;
-ứng dụng P1 vẫn dùng provider giả. Không mở tích hợp provider, P2 hoặc crawler P4.
+**Chưa chạy model benchmark, chưa có go/no-go.**
+
+Cập nhật 14/10/2026: đã nhận đủ `data/p0/text/ch01.txt`–`ch05.txt`.
+Đã chuẩn bị corpus full và hai notebook chạy riêng từng model; nguồn TXT giữ
+nguyên, URL ch03–ch05 và quyền nguồn chưa xác minh. Ch01–ch02 dùng Airn,
+ch03–ch05 dùng Irene; chưa đối chiếu khác biệt bản nguồn. Những ghi chép thiếu
+ba chương/smoke dưới đây là lịch sử chuẩn bị trước lần cập nhật này.
+Hai notebook và corpus full đã lên Drive; corpus được đọc lại xác minh đúng bytes.
+Cấu hình hiện tại: `MyDrive/p0/corpus.json`, `LIMIT=None`, mỗi model một phiên GPU
+riêng. Qwen2.5 đã có log tải model/chunk/resume/checkpoint; Qwen3 đang chạy được
+giữ nguyên theo người dùng. Xem HANDOFF để lấy link và giới hạn kiểm chứng.
+Người dùng cho phép sinh bản máy trước, dịch tay sau; không đọc output trước
+khi hoàn thành baseline. Notebook chỉ in trạng thái/counts, bản dịch lưu riêng. Có runner/notebook thử nghiệm độc lập;
+ứng dụng P1 vẫn dùng provider giả. Không mở tích hợp provider hoặc crawler P4; EPUB import local được mở riêng
+theo yêu cầu người dùng, xem [EPUB_IMPORT.md](EPUB_IMPORT.md).
 
 Người dùng chọn EN → VI, ngân sách 0 đồng, Colab free, tự review; đã đồng ý:
 không bỏ đoạn, mọi chunk hoàn tất, không còn lỗi sai ý trọng yếu sau review,
 thời gian sinh + sửa giảm ít nhất 25% so với dịch thủ công cùng nguồn.
-[criteria.json](../benchmarks/p0/criteria.json) tách ngưỡng này khỏi đề xuất chưa chốt:
-văn phong tiếng Việt tự nhiên giữ giọng/tên; tối đa 2 lần thử/model, 4 phiên free.
-Không chạy/chấm chính thức trước khi chốt văn phong và trần thử nghiệm.
+[criteria.json](../benchmarks/p0/criteria.json) ghi quyết định ngày 14/10/2026:
+tiếng Việt tự nhiên, giữ giọng nhân vật và tên riêng; tối đa 2 lần thử/model,
+tổng 4 phiên Colab miễn phí. Benchmark chưa chạy/chấm.
 Hai ứng viên, revision, giấy phép và ước tính VRAM: [P0_MODELS.md](P0_MODELS.md).
 
-## Nguồn và chuẩn bị offline
+## Nguồn và chuẩn bị offline (lịch sử smoke trước corpus full)
 
-Nguồn hiện tại: [Reformation of the Deadbeat Noble trên Webnovel](https://www.webnovel.com/vi/book/27050623305192205/72613479139302959).
-Lấy **thứ tự Webnovel 1–5, có Prologue** để giữ đúng hai file người dùng cung cấp.
-Nguồn cũ NovelFull chọn chapter 1–5 không Prologue; provenance cũ được ghi riêng
-trong [source_manifest.json](../benchmarks/p0/source_manifest.json), không trộn hai cách đánh số.
+Hai TXT hiện có mang provenance [Webnovel](https://www.webnovel.com/vi/book/27050623305192205/72613479139302959),
+theo thứ tự chương 1–5 có Prologue; giữ nguyên làm bộ mẫu hiện tại. Người dùng
+đã chọn [FreeWebNovel](https://freewebnovel.com/novel/reformation-of-the-deadbeat-noble)
+làm nguồn mới, nhưng Playwright gặp Cloudflare security verification nên chưa xác minh
+mục lục, ch03–ch05 hoặc đối chiếu hai nguồn. Không suy ra chúng tương đương.
+Nguồn cũ NovelFull chọn chapter 1–5 không Prologue; provenance được ghi riêng trong
+[source_manifest.json](../benchmarks/p0/source_manifest.json), không trộn cách đánh số.
 
 Đã có `data/p0/text/ch01.txt` (Prologue, 8.889 byte, 1.660 từ) và `ch02.txt`
 (The Lazy Prince Picks Up a Sword (1), 8.826 byte, 1.592 từ). Đây là TXT chép tay
@@ -24,8 +40,10 @@ của người dùng, thân tiếng Anh dù heading tiếng Việt; giữ nguyê
 Manifest ghi hash TXT, counts và coverage quan sát ở hai chương; raw HTML/hash
 là null vì không có bản HTML gốc của thao tác chép tay. Chương 3–5 chưa có;
 tiêu đề và URL riêng chưa xác minh nên để null, không suy từ NovelFull.
-Trang công khai được chọn trả HTTP 403 khi tải trực tiếp ngày 14/10/2026;
-công cụ web không mở được trang, đã dừng và không vượt chặn truy cập.
+Trang công khai được chọn trả HTTP 403 khi tải trực tiếp; Playwright ngày
+14/10/2026 gặp Cloudflare security verification. Đã dừng, không vượt chặn;
+TOC và ch03–ch05 chưa xác minh. Trạng thái/checkpoint ở
+[`data/p0/source-check.json`](../data/p0/source-check.json).
 
 `rights_status=unverified`: chưa có bằng chứng quyền dịch/phân phối của chủ quyền.
 Cho phép tiếp tục chỉ là chuẩn bị riêng, không chứng minh nguồn licensed/cleared.

@@ -22,6 +22,12 @@ sau template; reserve 2,048 output, context chạy 4,096; source target 768 toke
 batch 1. Chia chunk bằng tokenizer của từng model nên ranh giới có thể khác;
 chấm cùng năm chương và đối chiếu offsets, không so tốc độ chỉ theo số chunk.
 
+Riêng notebook Qwen2.5, sau lần chạy đầu dừng ở chunk đầu với 2.048 output
+tokens và đuôi token lặp, thử `repetition_penalty=1.1`. Giá trị được ghi vào
+config/snapshot/plan, tạo thư mục kết quả mới; các ngân sách token giữ nguyên.
+Đây là điều chỉnh thử nghiệm chưa chạy lại GPU, cần ghi khác biệt cấu hình
+khi so hai model. Checkpoint chưa hoàn tất cũ vẫn được giữ để đối chiếu.
+
 NF4 4-bit, double quantization, compute fp16. Notebook pin `transformers==4.57.3`,
 `accelerate==1.11.0`, `bitsandbytes==0.48.2`: **chưa kiểm thử trên Colab**.
 

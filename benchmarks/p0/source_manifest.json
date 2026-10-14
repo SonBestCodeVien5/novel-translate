@@ -4,7 +4,7 @@
   "book_url": "https://www.webnovel.com/vi/book/27050623305192205/72613479139302959",
   "rights_status": "unverified",
   "rights_evidence": null,
-  "source_status": "partial: user supplied ch01/ch02 manually; selected public page returned HTTP 403 on 2026-10-14; ch03/ch04/ch05 not acquired; no bypass attempted",
+  "source_status": "Five user-supplied TXT available; ch01/ch02 retain recorded Webnovel provenance; ch03/ch04/ch05 headings observed locally, chapter URLs and source-site equivalence unverified. FreeWebNovel selected by user but blocked by Cloudflare on 2026-10-14; no bypass or inferred chapter URLs.",
   "chapters": [
     {
       "id": "ch01",
@@ -26,7 +26,8 @@
       "acquisition": "manual user-supplied TXT; original raw HTML unavailable",
       "bytes": 8889,
       "source_language": "en",
-      "heading_language": "vi"
+      "heading_language": "vi",
+      "supplied_heading": "Chương 1: Prologue"
     },
     {
       "id": "ch02",
@@ -48,49 +49,62 @@
       "acquisition": "manual user-supplied TXT; original raw HTML unavailable",
       "bytes": 8826,
       "source_language": "en",
-      "heading_language": "vi"
+      "heading_language": "vi",
+      "supplied_heading": "Chương 2: The Lazy Prince Picks Up a Sword (1)"
     },
     {
       "id": "ch03",
-      "title": null,
+      "title": "The Lazy Prince Picks Up a Sword (2)",
       "url": null,
-      "availability": "missing",
+      "availability": "available",
       "raw_path": null,
-      "text_path": null,
+      "text_path": "data/p0/text/ch03.txt",
       "raw_sha256": null,
-      "text_sha256": null,
-      "characters": null,
-      "words": null,
+      "text_sha256": "356eacc0439b1d80df103f2524feadf8aaed91ad1dde3bca39eadde969df7c5e",
+      "characters": 10667,
+      "words": 1912,
       "tags": [],
-      "acquisition": "not acquired; chapter URL/title not verified"
+      "acquisition": "manual user-supplied TXT; chapter URL and original raw HTML unavailable; provenance not independently verified",
+      "bytes": 11086,
+      "source_language": "en",
+      "heading_language": "en",
+      "supplied_heading": "Chapter 2: The Lazy Prince Picks Up a Sword (2)"
     },
     {
       "id": "ch04",
-      "title": null,
+      "title": "People who keep watching (1)",
       "url": null,
-      "availability": "missing",
+      "availability": "available",
       "raw_path": null,
-      "text_path": null,
+      "text_path": "data/p0/text/ch04.txt",
       "raw_sha256": null,
-      "text_sha256": null,
-      "characters": null,
-      "words": null,
+      "text_sha256": "4a762140177b0f9a0a5b7c87cd8e11514e955f6adeadcb1defe78030fb92cc4f",
+      "characters": 9197,
+      "words": 1648,
       "tags": [],
-      "acquisition": "not acquired; chapter URL/title not verified"
+      "acquisition": "manual user-supplied TXT; chapter URL and original raw HTML unavailable; provenance not independently verified",
+      "bytes": 9463,
+      "source_language": "en",
+      "heading_language": "en",
+      "supplied_heading": "Chapter 3: People who keep watching (1)"
     },
     {
       "id": "ch05",
-      "title": null,
+      "title": "People who keep watching (2)",
       "url": null,
-      "availability": "missing",
+      "availability": "available",
       "raw_path": null,
-      "text_path": null,
+      "text_path": "data/p0/text/ch05.txt",
       "raw_sha256": null,
-      "text_sha256": null,
-      "characters": null,
-      "words": null,
+      "text_sha256": "19cdefcd8ea693e68d5ce9566d20b2c01aa7ce2bcbd3b2762b699c44e2ccbde9",
+      "characters": 14863,
+      "words": 2640,
       "tags": [],
-      "acquisition": "not acquired; chapter URL/title not verified"
+      "acquisition": "manual user-supplied TXT; chapter URL and original raw HTML unavailable; provenance not independently verified",
+      "bytes": 15462,
+      "source_language": "en",
+      "heading_language": "en",
+      "supplied_heading": "Chapter 4: People who keep watching (2)"
     }
   ],
   "coverage": {
@@ -98,16 +112,16 @@
     "names": true,
     "pronouns": true,
     "description": true,
-    "longest_chapter": null,
+    "longest_chapter": "ch05",
     "multi_chunk_proven": false,
     "long_budget_exceeded": null,
-    "scope": "Observed in supplied ch01/ch02 only; full five-chapter coverage and longest chapter remain unverified."
+    "scope": "Dialogue/names/pronouns/description observed in ch01/ch02; five TXT available, longest by characters is ch05. Full-token budget coverage remains to be measured by each model tokenizer."
   },
   "previous_source": {
     "book_url": "https://novelfull.net/reformation-of-the-deadbeat-noble.html",
     "numbering": "chapter 1–5 excluding Prologue",
     "source_status": "No full text acquired; chapter 1 HTTP 403"
   },
-  "numbering": "Webnovel chapters 1–5 including Prologue; preserves supplied ch01/ch02; differs from previous NovelFull selection",
+  "numbering": "Supplied file order ch01–ch05 includes Prologue; ch01/ch02 use Vietnamese headings numbered 1/2, ch03–ch05 use English Chapter 2/3/4. Source numbering/site equivalence unverified.",
   "rights_note": "Private preparation only; user authorization to continue is not evidence of translation/distribution rights."
 }

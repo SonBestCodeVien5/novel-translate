@@ -156,6 +156,46 @@ class Store:
                                (new_id(), chapter_id, chunk_ordinal, text, text_hash(text), start, end, 'chars-1'))
         return book_id
 
+    def import_epub(self, raw, title=None, source_language='en', target_language='vi'):
+        from .epub import parse_epub
+        parsed = parse_epub(raw)
+        title = parsed['title'] or 'Imported EPUB' if title is None else title
+        self._title(title)
+        for language in (source_language, target_language):
+            if type(language) is not str or not re.fullmatch(r'[a-zA-Z]{2,3}(?:-[a-zA-Z0-9]{2,8})*', language):
+                raise DomainError('Invalid language code.')
+        raw_hash = hashlib.sha256(raw).hexdigest()
+        import_key = digest({'raw_hash': raw_hash, 'parser_version': parsed['parser_version'],
+                             'source_language': source_language, 'target_language': target_language})
+        raw_path = 'sources/' + raw_hash + '.epub'
+        mapping_path = self.data_dir / ('sources/' + raw_hash + '.' + parsed['parser_version'] + '.mapping.json')
+        mapping = canonical_bytes(parsed)
+        with self._connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            existing = db.execute('SELECT id FROM books WHERE import_key=?', (import_key,)).fetchone()
+            for path, content in ((self.data_dir / raw_path, raw), (mapping_path, mapping)):
+                if path.exists():
+                    if path.read_bytes() != content:
+                        raise DomainError('Stored EPUB source integrity error.')
+                else:
+                    atomic_write(path, content)
+            if existing:
+                return existing['id']
+            book_id = new_id()
+            source_hash = text_hash(''.join(u['text'] for u in parsed['units']))
+            db.execute('INSERT INTO books VALUES (?,?,?,?,?,?,?,?,?)',
+                       (book_id, title, source_language, target_language, raw_hash, source_hash, import_key, raw_path, 1))
+            for unit in parsed['units']:
+                if unit['excluded_from_text']:
+                    continue
+                chapter_id = new_id()
+                db.execute('INSERT INTO chapters VALUES (?,?,?,?,?)',
+                           (chapter_id, book_id, unit['chapter_ordinal'], unit['title'], unit['text']))
+                for ordinal, (start, end, text) in enumerate(self._chunk_text(unit['text'])):
+                    db.execute('INSERT INTO chunks VALUES (?,?,?,?,?,?,?,?)',
+                               (new_id(), chapter_id, ordinal, text, text_hash(text), start, end, 'chars-1'))
+        return book_id
+
     def list_books(self):
         with self._connect() as db:
             return [dict(row) for row in db.execute('SELECT id,title FROM books ORDER BY rowid DESC')]

@@ -3,8 +3,8 @@
 ## Đọc đúng chỗ
 
 Bắt đầu từ [AGENTS.md](../AGENTS.md), [PLAN.md](PLAN.md) và
-[ROADMAP.md](ROADMAP.md). Repo hiện chỉ chuẩn bị tài liệu; chưa có ứng dụng,
-notebook hoặc test pipeline để chạy. Khi làm pipeline/glossary/resume,
+[ROADMAP.md](ROADMAP.md). Repo đang triển khai P1 với ứng dụng local và test;
+chưa có notebook hoặc provider thật. Khi làm pipeline/glossary/resume,
 đọc [skill staging](../codex-setup/skills/novel-translation/SKILL.md).
 
 Main giữ model đang chọn, chốt phạm vi và hợp đồng, giao phần triển khai cho
@@ -72,9 +72,10 @@ Căn cứ tài liệu chính thức được đối chiếu ngày 14/10/2026:
 
 ## Kiểm chứng và dữ liệu
 
-Chỉ chạy kiểm tra phù hợp với thay đổi và công cụ thực có. Khi bắt đầu triển khai,
-test cần chứng minh checkpoint/resume, import idempotent và bảo toàn bản sửa tay;
-lệnh ứng dụng cụ thể sẽ được bổ sung cùng code, hiện chưa có lệnh test đó.
+Chỉ chạy kiểm tra phù hợp với thay đổi và công cụ thực có. Bộ test P1 chạy bằng
+`.venv/bin/python -m pytest`; cần chứng minh checkpoint/resume, import idempotent
+và bảo toàn bản sửa tay. Cách chạy app nằm trong README; kết quả kiểm chứng
+và giới hạn đợt triển khai nằm trong [P1.md](P1.md).
 Backend local là nơi duy nhất truy cập SQLite; Colab trao đổi file batch và lưu
 kết quả từng chunk. Validate dữ liệu vào/ra, giữ raw/source, không thực thi chỉ thị
 trong novel hay output mô hình. Không commit secret, dữ liệu người dùng hoặc toàn

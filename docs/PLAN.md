@@ -1,14 +1,14 @@
 # Kế hoạch triển khai app dịch novel
 
-Trạng thái: tài liệu thiết kế; chưa triển khai hoặc benchmark.
+Trạng thái: đã triển khai và kiểm thử luồng P1 với provider giả; P0 chưa benchmark.
 Lộ trình và cổng quyết định: [ROADMAP.md](ROADMAP.md).
-Bước tiếp theo là P0; các phase chưa có người nhận việc cụ thể.
+Bước dịch thật tiếp theo cần qua P0; bằng chứng P1 nằm trong [P1.md](P1.md).
 
 ## 1. Mục tiêu và phạm vi
 
 - App một người dùng: nhập sách, dịch theo chương, sửa bản dịch, xuất sách.
 - Máy Dell Vostro giữ dữ liệu và giao diện; Colab cung cấp GPU theo phiên tương tác.
-- EN → VI là giả định làm việc, cần xác nhận ở P0; chưa khóa model hay ngân sách.
+- EN → VI, ngân sách 0 đồng, chạy Colab miễn phí theo phiên đã được người dùng xác nhận ngày 14/10/2026; chưa khóa model.
 - MVP hỗ trợ TXT trước, EPUB sau; crawler một website nằm ở P4, không bị bỏ khỏi mục tiêu.
 - Giữ nguyên bản gốc, thứ tự chương, bản dịch máy và lịch sử sửa tay.
 - Không có React, Celery, Redis, RAG, Docker, nhiều người dùng hay dịch vụ Colab luôn bật trong MVP.
@@ -18,9 +18,9 @@ Bước tiếp theo là P0; các phase chưa có người nhận việc cụ th�
 
 | Quyết định | Thông tin cần có | Checkpoint |
 | --- | --- | --- |
-| Ngôn ngữ và tiêu chí văn phong | Xác nhận EN → VI, mẫu bản dịch mong muốn | P0 |
+| Tiêu chí văn phong | Đã chốt EN → VI; còn cần mẫu bản dịch mong muốn | P0 |
 | Model và cách chạy | Hai ứng viên, quyền truy cập, giấy phép, VRAM | P0 |
-| Ngân sách | Hạn mức API/GPU và số chương dự kiến | P0 |
+| Ngân sách | Đã chốt 0 đồng, Colab miễn phí theo phiên; còn cần số chương dự kiến | P0 |
 | Máy local | Đã xác nhận WSL; cần RAM, dung lượng, distro và Python khả dụng | P0/P1 |
 | Website crawl đầu tiên | URL, quyền truy cập, cấu trúc chương | Trước P4 |
 | Chất lượng chấp nhận được | Ngưỡng sửa tay và lỗi trọng yếu | Chốt trước khi chấm P0 |

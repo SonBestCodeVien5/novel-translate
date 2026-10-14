@@ -3,7 +3,8 @@
 Đọc `docs/WORKFLOW.md` trước khi làm việc; đọc `docs/PLAN.md` và `docs/ROADMAP.md`
 khi quyết định phạm vi. Khi cần bối cảnh tổng thể, xem `docs/PROJECT_KNOWLEDGE.md`;
 đây là tài liệu tham khảo, không thay PLAN/ROADMAP hoặc quy tắc làm việc.
-Hiện repo chỉ có tài liệu chuẩn bị, chưa có ứng dụng.
+Repo đã có ứng dụng local P1 dùng provider giả; xem `docs/P1.md` cho bằng chứng
+và giới hạn, chưa có provider thật hoặc Colab.
 Khi triển khai hoặc kiểm tra pipeline dịch, glossary, checkpoint hay import/export,
 đọc rõ `codex-setup/skills/novel-translation/SKILL.md`; đây là bản staging,
 chưa được Codex tự khám phá như skill đã cài.

@@ -1,22 +1,63 @@
 # Novel Translate
 
-Chuẩn bị dự án dịch novel với backend và SQLite chạy local; Colab hỗ trợ chạy
-batch dịch qua file và có thể ngắt rồi tiếp tục từ chunk đã lưu.
+Ứng dụng cá nhân EN → VI, dữ liệu và SQLite ở máy local; Colab xử lý batch
+theo phiên ở giai đoạn sau. Ngân sách đã chốt: **0 đồng**.
 
-Repo hiện **chỉ có tài liệu và cấu hình mẫu**, chưa có ứng dụng hoặc pipeline chạy được.
+Bản đầu P1 hỗ trợ TXT với **provider giả**, dùng để kiểm tra luồng nhập,
+checkpoint, review và xuất. Nội dung có nhãn `FAKE`, không phải bản dịch thật.
+Chưa có provider thật, EPUB, Colab, crawler hoặc benchmark chất lượng. Provider thật là như sau: [https://novelfull.net/reformation-of-the-deadbeat-noble.html]
 
-Thứ tự đọc để hiểu dự án: tổng quan → hợp đồng kỹ thuật → lộ trình.
+## Chạy local
 
-- [Tổng quan và bối cảnh](docs/PROJECT_KNOWLEDGE.md)
+Cần Python 3.11 trở lên. Tại root repo, dùng `uv`:
+
+```bash
+UV_CACHE_DIR=/tmp/novel-translate-uv-cache uv venv .venv
+UV_CACHE_DIR=/tmp/novel-translate-uv-cache uv pip install --python .venv/bin/python -e '.[test]'
+.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+Nếu đã có pip, có thể dùng `python3 -m venv .venv` rồi
+`.venv/bin/python -m pip install -e '.[test]'` thay hai lệnh đầu.
+Mở <http://127.0.0.1:8000>. Giữ bind loopback: bản này dành cho một người dùng
+local. Dữ liệu mặc định ở `data/` (được bỏ qua trong Git); biến môi trường
+`NOVEL_DATA_DIR` chọn thư mục local khác. Không đặt SQLite trên Drive.
+
+## Thử luồng P1
+
+1. Nhập tên và TXT UTF-8 nhỏ (tối đa 1 MiB), xem trước thứ tự chương, sửa tiêu đề rồi xác nhận.
+2. Tạo job giả, chạy từng chunk. Có thể dừng server rồi chạy lại cùng thư mục
+   dữ liệu; job và kết quả đã nhận vẫn còn. Tải lại trang sau restart trước khi
+   gửi form vì mã CSRF của phiên thay đổi.
+3. Tải manifest JSON hoặc nhập result JSON qua form. Result phải đúng snapshot,
+   schema và checksum; nhập trùng là no-op, xung đột được báo lỗi.
+4. Sửa từng chunk và lưu. Hai tab sửa từ cùng revision sẽ báo conflict;
+   kết quả máy đến sau không ghi đè bản sửa.
+5. Xuất TXT sau khi đủ kết quả, hoặc chọn xuất nháp có đánh dấu phần thiếu.
+   Thứ tự chương/chunk được giữ khi xuất, ưu tiên bản sửa tay.
+
+Nguồn gốc, batch, result và bản sửa được giữ riêng. File nhập bị từ chối được
+giữ để chẩn đoán; chúng có thể chứa nội dung sách. Không chia sẻ hoặc commit
+thư mục dữ liệu. P1 chưa có giao diện backup/restore; đừng xóa thư mục dữ liệu
+để khắc phục lỗi.
+
+## Kiểm tra
+
+```bash
+.venv/bin/python -m pytest
+```
+
+Fixture là đoạn tự tạo; không đưa novel thật, secret, `.env` hoặc DB vào repo.
+Bằng chứng và giới hạn của đợt triển khai nằm trong [P1.md](docs/P1.md).
+
+## Tài liệu
+
 - [Kế hoạch và hợp đồng dữ liệu](docs/PLAN.md)
-- [Lộ trình thực hiện](docs/ROADMAP.md)
-- [Cách làm việc và cài cấu hình Codex](docs/WORKFLOW.md)
-- [Quy tắc agent của repo](AGENTS.md)
+- [Roadmap và cổng kiểm chứng](docs/ROADMAP.md)
+- [Phiếu benchmark P0 chưa chạy](docs/P0_BENCHMARK.md)
+- [Tổng quan](docs/PROJECT_KNOWLEDGE.md)
+- [Workflow](docs/WORKFLOW.md) và [quy tắc agent](AGENTS.md)
 
-Bước tiếp theo là P0 trong roadmap: chuẩn bị benchmark chất lượng, tốc độ và chi phí;
-chốt dữ liệu mẫu hợp lệ, budget và model trước khi chạy benchmark.
-Không đưa novel thật hoặc secret vào repo.
-
-Prompt bắt đầu gợi ý: “Đọc AGENTS.md và chuẩn bị benchmark P0 theo
-docs/ROADMAP.md; xác định dữ liệu mẫu, budget và model còn thiếu trước
-khi chạy. Main chốt phạm vi và giao worker phần chuẩn bị cần thiết.”
+P0 còn cần mẫu hợp lệ, hai ứng viên model miễn phí và người review trước khi
+chạy/chấm. Colab miễn phí phải được thử trên tài khoản thực; chưa có bằng chứng
+về GPU/quota, tốc độ hoặc chất lượng.

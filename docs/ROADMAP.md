@@ -1,8 +1,10 @@
 # Roadmap theo cổng kiểm chứng
 
-Trạng thái toàn bộ phase: **chưa triển khai**. Không gắn lịch giao hàng khi chưa có phép đo.
+Trạng thái: **P1 có luồng local đã kiểm thử bằng provider giả**, P0 chưa benchmark; P2–P4 chưa triển khai.
+Không gắn lịch giao hàng khi chưa có phép đo. Bằng chứng/giới hạn P1: [P1.md](P1.md).
 Kiến trúc, dữ liệu và hợp đồng batch: [PLAN.md](PLAN.md).
-Hiện tại chỉ có tài liệu; bước kế tiếp là P0. Người thực hiện trong backlog là vai trò đề xuất, chưa phân công cá nhân.
+Người dùng đã chốt EN → VI, 0 đồng, Colab miễn phí theo phiên (14/10/2026).
+P1 được làm bằng fake provider trong khi chờ mẫu/ngưỡng/model của P0.
 
 ## Backlog và definition of done
 
@@ -21,7 +23,8 @@ Hiện tại chỉ có tài liệu; bước kế tiếp là P0. Người thực 
 | P3-03 | Nối flow dịch vào UI | Dev + người dùng | Nút Dịch/tiến độ/resume gọi script đã kiểm chứng; kết quả chuyển sang review, duyệt/export chính thức có chủ đích; có notebook fallback khi CLI bị hoãn |
 | P4-01 | Adapter một site | Dev | Crawl/import lặp đúng thứ tự, fixture và SSRF tests đạt |
 
-Mỗi dòng còn ở trạng thái chưa triển khai; tiêu chí phase bên dưới là điều kiện bổ sung, không thay thế DoD của task.
+P1-01/P1-02 có bằng chứng trong P1.md; các dòng khác chưa triển khai. Tiêu chí phase
+bên dưới là điều kiện bổ sung, không thay thế DoD của task.
 
 ## P0 — Kiểm chứng chất lượng và chi phí
 

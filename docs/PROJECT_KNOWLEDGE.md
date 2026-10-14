@@ -2,9 +2,9 @@
 
 ## Trạng thái và cách đọc
 
-Repo hiện chỉ có tài liệu và cấu hình mẫu; chưa có ứng dụng, notebook, test
-pipeline hoặc kết quả benchmark. Nội dung dưới đây mô tả hướng thiết kế,
-không phải chức năng đã hoạt động hay cam kết chất lượng.
+Repo đang triển khai ứng dụng local P1 và test với provider giả; chưa có notebook,
+provider thật hoặc kết quả benchmark. [P1.md](P1.md) ghi bằng chứng/giới hạn
+cụ thể. Nội dung bên dưới mô tả hướng thiết kế, không cam kết chất lượng.
 
 - Tài liệu này: bối cảnh, mục tiêu và các lựa chọn tổng thể.
 - [PLAN.md](PLAN.md): nguồn chính cho kiến trúc, hợp đồng dữ liệu và bất biến.
@@ -18,8 +18,9 @@ chỉ thị làm việc, và không cần nạp toàn bộ vào mọi nhiệm v�
 ## Mục tiêu sản phẩm
 
 Xây dựng công cụ cá nhân hỗ trợ nhập tiểu thuyết, tách chương, dịch bằng LLM,
-review/sửa bản dịch và xuất sách tiếng Việt. EN → VI là giả định hiện tại,
-cần người dùng xác nhận ở P0 cùng văn phong và tiêu chí chất lượng.
+review/sửa bản dịch và xuất sách tiếng Việt. Người dùng đã xác nhận EN → VI,
+ngân sách 0 đồng và Colab miễn phí theo phiên ngày 14/10/2026. Văn phong và
+tiêu chí chất lượng vẫn cần chốt ở P0.
 
 Giá trị mong muốn là giảm thời gian dịch và sửa mà vẫn giữ nghĩa, tên riêng,
 thuật ngữ, tính cách và xưng hô nhất quán. Giữ bản gốc và sửa tay là yêu cầu
@@ -110,8 +111,9 @@ Các liên kết tham khảo và giới hạn bằng chứng hiện có nằm �
 | P3 | UI Dịch/tiến độ/resume, review/glossary, conflict/revision, backup/restore và accessibility |
 | P4 | Crawler đúng một website có fixture, kiểm tra truy cập và SSRF |
 
-Bước tiếp theo là P0: cần mẫu nguồn hợp lệ, ngôn ngữ, hai ứng viên, ngân sách
-và người review. Chưa có phép đo tốc độ, chi phí, chất lượng hoặc dung lượng.
+Bước dịch thật cần qua P0: còn thiếu mẫu nguồn hợp lệ, hai ứng viên và người
+review. Ngôn ngữ EN → VI và ngân sách 0 đồng đã chốt. Chưa có phép đo tốc độ,
+chi phí hoặc chất lượng model.
 P1 có thể dùng fake provider để kiểm tra luồng dữ liệu mà không cần GPU.
 Chi tiết acceptance và exit theo ROADMAP; bảng trên chỉ tóm tắt.
 
@@ -140,5 +142,5 @@ Không commit secret, `.env`, database, dữ liệu người dùng hoặc toàn 
 quyền. Fixture phải nhỏ, giả lập hoặc có quyền sử dụng. Backup cần giữ DB và
 assets nhất quán, và chỉ coi phục hồi là đạt sau khi đã thử restore.
 
-Mỗi phase phải báo bằng chứng đã kiểm tra và phần còn thiếu. Hiện chưa có
-ứng dụng để xác nhận các bất biến trên bằng test; đây là yêu cầu cho triển khai.
+Mỗi phase phải báo bằng chứng đã kiểm tra và phần còn thiếu. Test P1 kiểm tra
+luồng giả; không chứng minh model thật hoặc Colab đáp ứng các yêu cầu trên.

@@ -3,6 +3,7 @@ import errno
 import io
 import json
 import sys
+from collections import UserDict
 from pathlib import Path
 import tempfile
 import types
@@ -11,7 +12,8 @@ from contextlib import redirect_stdout
 from unittest.mock import patch
 
 from app.bundles import DomainError, canonical_bytes, digest, load_json
-from benchmarks.p0.runner import CONFIG, MODELS, build_plan, input_ids, run, validate_corpus, validate_result, write_new
+from benchmarks.p0.runner import (CONFIG, MODELS, QWEN35, apply_model_profile, build_plan, input_ids,
+                                  run, validate_corpus, validate_result, write_new)
 
 
 class Tokenizer:
@@ -23,6 +25,11 @@ class Tokenizer:
     def apply_chat_template(self, messages, tokenize, add_generation_prompt):
         assert tokenize and add_generation_prompt
         return self.encode(json.dumps(messages, ensure_ascii=False)) + [1]
+
+
+class BatchEncodingTokenizer(Tokenizer):
+    def apply_chat_template(self, messages, tokenize, add_generation_prompt):
+        return UserDict(input_ids=super().apply_chat_template(messages, tokenize, add_generation_prompt))
 
 
 def corpus():
@@ -58,6 +65,16 @@ class P0Tests(unittest.TestCase):
         broken = corpus(); broken['glossary'] = 'x' * 2100
         with self.assertRaises(DomainError):
             build_plan(broken, Tokenizer(), MODELS[0], 'a' * 40)
+
+    def test_batch_encoding_input_ids_drive_plan_count_and_hash(self):
+        tokenizer = BatchEncodingTokenizer()
+        ids = input_ids(tokenizer, 'A small test.', 'Mira: Mira')
+        plan = build_plan(corpus(), tokenizer, MODELS[0], 'a' * 40)
+        chunk = plan['chunks'][0]
+        actual_ids = input_ids(tokenizer, chunk['source_text'], plan['corpus']['glossary'])
+        self.assertEqual(chunk['input_tokens'], len(actual_ids))
+        self.assertEqual(chunk['input_hash'], digest(actual_ids))
+        self.assertIsInstance(ids, list)
 
     def test_resume_preserves_machine_and_manual_files(self):
         run(self.plan, self.output, self.generate, 1)
@@ -182,6 +199,78 @@ class P0Tests(unittest.TestCase):
         finally:
             CONFIG.clear(); CONFIG.update(original_config)
 
+    def test_qwen35_profile_mapping_nested_context_and_snapshot(self):
+        original = copy.deepcopy(CONFIG)
+        qwen35_revision = 'b' * 40
+        corpus_path = Path(self.temp.name) / 'corpus.json'
+        corpus_path.write_text(json.dumps(corpus()), encoding='utf-8')
+        template_kwargs = []
+        tokenizer = types.SimpleNamespace(chat_template='template', init_kwargs={'revision': 'pin', '_commit_hash': qwen35_revision},
+            encode=lambda text, add_special_tokens=False: [1] * len(text),
+            apply_chat_template=lambda messages, tokenize, add_generation_prompt, **kwargs:
+                template_kwargs.append(kwargs) or [1] * sum(len(m['content']) for m in messages))
+        model = types.SimpleNamespace(config=types.SimpleNamespace(
+            text_config=types.SimpleNamespace(max_position_embeddings=4096), _commit_hash=None),
+            generation_config=types.SimpleNamespace(eos_token_id=0), eval=lambda: None)
+        load_args, plans = [], []
+        torch = types.ModuleType('torch')
+        torch.float16 = object()
+        torch.cuda = types.SimpleNamespace(is_available=lambda: True, reset_peak_memory_stats=lambda: None,
+            get_device_properties=lambda _index: types.SimpleNamespace(name='mock', total_memory=1),
+            synchronize=lambda: None, max_memory_allocated=lambda: 0, max_memory_reserved=lambda: 0)
+        torch.version = types.SimpleNamespace(cuda='mock')
+        torch.backends = types.SimpleNamespace(cudnn=types.SimpleNamespace(version=lambda: 1))
+        transformers = types.ModuleType('transformers')
+        transformers.AutoTokenizer = types.SimpleNamespace(from_pretrained=lambda *a, **kw: tokenizer)
+        transformers.AutoModelForCausalLM = types.SimpleNamespace(from_pretrained=lambda *_a, **_kw:
+            self.fail('Qwen3.5 must use its text-only model class'))
+        transformers.Qwen3_5ForCausalLM = types.SimpleNamespace(from_pretrained=lambda *a, **kw:
+            load_args.append(kw) or (model, {'missing_keys': [], 'mismatched_keys': [], 'error_msgs': []}))
+        hub = types.ModuleType('transformers.utils.hub')
+        hub.cached_file = lambda _model, _name, revision: f'/cache/snapshots/{revision}/config.json'
+        hub.extract_commit_hash = lambda path, _commit: path.split('/snapshots/')[1].split('/')[0]
+        utils = types.ModuleType('transformers.utils')
+        utils.hub = hub
+        transformers.BitsAndBytesConfig = lambda **kw: kw
+        transformers.set_seed = lambda _seed: None
+        try:
+            apply_model_profile(QWEN35)
+            self.assertEqual(CONFIG['attention_implementation'], 'sdpa')
+            self.assertEqual(CONFIG['quantization'], {'load_in_4bit': True, 'bnb_4bit_quant_type': 'nf4',
+                'bnb_4bit_use_double_quant': True, 'bnb_4bit_compute_dtype': 'float16'})
+            self.assertEqual(CONFIG['chat_template_kwargs'], {'enable_thinking': False})
+            plan = build_plan(corpus(), tokenizer, QWEN35, qwen35_revision)
+            self.assertEqual(plan['config'], CONFIG)
+            self.assertNotEqual(plan['config'], original)
+            self.assertTrue(template_kwargs)
+            self.assertTrue(all(kwargs == {'enable_thinking': False} for kwargs in template_kwargs))
+            with patch.dict(sys.modules, {'torch': torch, 'transformers': transformers,
+                                         'transformers.utils': utils, 'transformers.utils.hub': hub}), \
+                 patch('benchmarks.p0.runner.importlib.metadata.version', return_value='mock'), \
+                 patch('benchmarks.p0.runner.run', side_effect=lambda p, *_a, **_kw: plans.append(copy.deepcopy(p))), \
+                 patch.object(sys, 'argv', ['runner', '--model', QWEN35, '--revision', qwen35_revision,
+                                            '--corpus', str(corpus_path), '--output', str(self.output)]), \
+                 redirect_stdout(io.StringIO()):
+                from benchmarks.p0.runner import main as runner_main
+                runner_main()
+            self.assertEqual(load_args[0]['key_mapping'], {r'^model\.language_model\.': 'model.'})
+            self.assertTrue(load_args[0]['output_loading_info'])
+            self.assertEqual(plans[0]['config'], CONFIG)
+            self.assertEqual(plans[0]['config']['context_tokens'], 4096)
+            self.assertEqual(plans[0]['config']['generation'], {'max_new_tokens': 2048, 'do_sample': False})
+            session = next((self.output / 'sessions').glob('*.json'))
+            self.assertEqual(load_json(session.read_bytes())['actual_model_commit'], qwen35_revision)
+            model.config._commit_hash = 'c' * 40
+            with patch.dict(sys.modules, {'torch': torch, 'transformers': transformers,
+                                         'transformers.utils': utils, 'transformers.utils.hub': hub}), \
+                 patch('benchmarks.p0.runner.importlib.metadata.version', return_value='mock'), \
+                 patch.object(sys, 'argv', ['runner', '--model', QWEN35, '--revision', qwen35_revision,
+                                            '--corpus', str(corpus_path), '--output', str(self.output)]), \
+                 redirect_stdout(io.StringIO()), self.assertRaises(DomainError):
+                runner_main()
+        finally:
+            CONFIG.clear(); CONFIG.update(original)
+
     def test_drive_unsupported_directory_fsync_verifies_readback(self):
         import os
         original = os.fsync
@@ -218,24 +307,40 @@ class P0Tests(unittest.TestCase):
             validate_corpus(sample)
 
     def test_portable_notebook_bootstrap_matches_sources_and_runs_offline(self):
-        from benchmarks.p0.build_notebook import SOURCES, ROOT, refresh
         notebook = json.loads(Path('notebooks/p0_benchmark.ipynb').read_text())
-        self.assertEqual(refresh(copy.deepcopy(notebook)), notebook)
         bootstrap = next(c for c in notebook['cells'] if c['metadata'].get('p0_bootstrap'))
         source = ''.join(bootstrap['source'])
         temporary_root = Path(self.temp.name) / 'bootstrap'
         source = source.replace("Path('/content/p0-code')", 'Path(' + repr(str(temporary_root)) + ')')
         namespace = {}
         exec(compile(source, '<bootstrap>', 'exec'), namespace)
-        for name in SOURCES:
-            self.assertEqual((temporary_root / name).read_bytes(), (ROOT / name).read_bytes())
+        for name, expected in namespace['SOURCES'].items():
+            self.assertEqual((temporary_root / name).read_bytes(), expected.encode('utf-8'))
         code = [''.join(c['source']) for c in notebook['cells'] if c['cell_type'] == 'code']
         self.assertIn('google.colab', code[0])
         self.assertIn('cuda.is_available', code[0])
         self.assertIn("'pip'", code[1])
 
     def test_notebook_code_syntax(self):
-        notebook = json.loads(Path('notebooks/p0_benchmark.ipynb').read_text())
-        for cell in notebook['cells']:
-            if cell['cell_type'] == 'code':
-                compile(''.join(cell['source']), '<notebook>', 'exec')
+        for path in ('notebooks/p0_benchmark.ipynb', 'notebooks/p0_qwen25_benchmark.ipynb',
+                     'notebooks/p0_qwen35_benchmark.ipynb'):
+            notebook = json.loads(Path(path).read_text())
+            for cell in notebook['cells']:
+                if cell['cell_type'] == 'code':
+                    compile(''.join(cell['source']), '<notebook>', 'exec')
+
+    def test_qwen35_notebook_bootstrap_and_profile_are_portable(self):
+        from benchmarks.p0.build_notebook import ROOT, SOURCES, bootstrap_source
+        notebook = json.loads(Path('notebooks/p0_qwen35_benchmark.ipynb').read_text())
+        bootstrap = next(c for c in notebook['cells'] if c['metadata'].get('p0_bootstrap'))
+        self.assertEqual(''.join(bootstrap['source']), bootstrap_source())
+        source = ''.join(bootstrap['source'])
+        temporary_root = Path(self.temp.name) / 'qwen35-bootstrap'
+        source = source.replace("Path('/content/p0-code')", 'Path(' + repr(str(temporary_root)) + ')')
+        exec(compile(source, '<bootstrap>', 'exec'), {})
+        for name in SOURCES:
+            self.assertEqual((temporary_root / name).read_bytes(), (ROOT / name).read_bytes())
+        config = ''.join(notebook['cells'][6]['source'])
+        self.assertIn("LIMIT = 1", config)
+        self.assertIn('apply_model_profile(MODEL)', config)
+        self.assertIn("transformers==5.3.0", ''.join(notebook['cells'][2]['source']))

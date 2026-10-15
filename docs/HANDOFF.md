@@ -2,6 +2,119 @@
 
 Đọc sau WORKFLOW; trạng thái mới nhất ở mục đầu, các mục sau là lịch sử.
 
+## Đồng bộ docs và dọn notebook — 15/10/2026
+
+- Theo yêu cầu user, đồng bộ trạng thái P0, CLI và notebook Run all trong
+  README, WORKFLOW, ROADMAP, P0_BENCHMARK, P0_MODELS và hướng dẫn Colab.
+  Run all vẫn dùng được (`LIMIT=None` cho full), nhưng không chạy cùng script
+  trên một kernel. P2 batch v2 vẫn offline; P0 script không thay P2-03/04.
+- Lần đọc log gần nhất: `ch01-0001`, `ch01-0002`, `ch02-0000` đều EOS và đã
+  lưu `technical_complete`; tổng 4/18, đang sinh `ch02-0001`. Tiến trình tool
+  session `73353` vẫn chạy. Đây là quan sát theo thời điểm, không phải kết quả
+  hoàn tất benchmark; không đọc/chấm bản dịch trước baseline.
+- Dọn notebook local bằng backup nguyên bytes trước, refresh source nhúng,
+  xóa outputs/execution counts; không can thiệp kernel đang chạy, nguồn/raw,
+  checkpoint, SQLite hay sửa tay. Dữ liệu và auth CLI vẫn ở ngoài Git.
+  Backup/readback/SHA tại `data/backups/notebooks/20261015T160043388408Z/`.
+- Phạm vi commit gồm Qwen3.5/CLI/tests/docs đã kiểm chứng; không push.
+  Full suite trước bước dọn: 92 passed, 23 subtests; sau dọn 29 test P0/CLI
+  đạt, cả ba notebook JSON/source/syntax/config/clean-output đều đạt.
+  Test CLI tùy chọn skip khi chưa cài extra `colab`. Các mục dưới là lịch sử.
+
+## Qwen3.5 smoke thật đạt; script chạy qua CLI — 15/10/2026
+
+- User yêu cầu worker sửa lỗi còn lại và tự động hóa. Hai worker `gpt-6-luna/low`
+  phụ trách riêng runner/notebook và script; main tích hợp/kiểm chứng.
+- Lỗi mới là guard revision sau tải weights: TextConfig nested không giữ
+  `_commit_hash`. Runner resolve `config.json` tại revision pin, kiểm SHA từ
+  cache snapshot; hash model nếu có vẫn phải khớp, không bỏ kiểm provenance.
+  Snapshot/config/output cũ giữ nguyên. Notebook Qwen3.5 backup bytes trước
+  refresh bootstrap; checkpoint/session lỗi cũ không bị ghi đè.
+- Worker restart đúng kernel trên runtime T4 hiện có, không cấp VM mới;
+  smoke `ch01-0000` đạt `technical_complete`, 830 input / 922 output tokens,
+  EOS, error null. Session ghi đúng SHA `851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a`,
+  load khoảng 34,29 giây. Chưa đọc/chấm nội dung bản dịch.
+- Có `scripts/run_p0_colab.py`: xác minh assignment/kernel đang idle, kiểm pins,
+  GPU/Drive, bootstrap source hiện tại, reload runner, snapshot và chạy toàn
+  bộ chunk thiếu. `--limit 1` cho smoke; `--restart-kernel` restart cùng kernel.
+  Dừng khi lỗi/needs_review, không tạo VM hoặc tự retry generation.
+  Xem [COLAB_AUTOMATION.md](COLAB_AUTOMATION.md).
+- Main chạy full suite ngoài sandbox: 92 passed, 23 subtests passed, một warning
+  Starlette/httpx có sẵn. Script `--dry-run`, syntax và `git diff --check` đạt.
+  Main đã khởi chạy script full với `--restart-kernel` để resume sau chunk đầu;
+  runtime PID 9472, nạp model 58,4 giây, xác minh resume `1/18` và đang sinh
+  `ch01-0001`. Tiến trình local tool session `73353` còn chạy để nhận log;
+  chưa kết luận đủ 18 chunk, không coi smoke là benchmark/go-no-go.
+
+## Sửa BatchEncoding Qwen3.5 qua CLI — 15/10/2026
+
+- User đã đăng nhập CLI và yêu cầu sửa block cuối Qwen3.5. Lỗi gốc là
+  `BatchEncoding is not JSON serializable` tại `build_plan -> digest(ids)`,
+  trước tải weights. Transformers 5.3 trả mapping mặc định; runner giờ lấy
+  `input_ids` từ mapping, giữ tokenizer trả list. Không đổi model/config.
+- Worker thêm regression count/hash, backup nguyên bytes notebook tại
+  `data/backups/notebooks/20261015T153001422766Z/`, đọc lại byte-equal; chỉ refresh
+  bootstrap Qwen3.5. Giữ output lỗi và hai notebook cũ. Test bootstrap tách
+  source khỏi execution count; notebook cũ kiểm source nhúng/checksum riêng.
+- Main dùng CLI đọc Jupyter sessions của runtime T4 đang có, xác định đúng
+  notebook Qwen3.5/kernel idle, ghi alias `qwen35-vscode` vào state repo.
+  Không cấp VM/kernel mới. Qua `colab exec`, backup runner remote, cập nhật và
+  reload trong kernel PID 752; chạy tokenizer thật từ cache revision đã pin.
+- Kiểm thật: trả `BatchEncoding`, normalize thành list token, plan đủ 5 chương /
+  18 chunk, budget/hash từng chunk và canonical JSON đều đạt. Main chạy 20 test
+  P0 đạt, `git diff --check` đạt. Chưa nạp weights/chạy lại block sinh, chưa kiểm
+  VRAM, tốc độ hoặc chất lượng. Kernel hiện tại đã nhận bản sửa; lần chạy block
+  cuối tiếp theo dùng runner mới. Output lỗi cũ vẫn là lịch sử.
+
+## Gộp Colab CLI vào .venv — 15/10/2026
+
+- Theo yêu cầu mới, `google-colab-cli==0.7.4` đã chuyển vào `.venv` Python 3.12
+  chung với ứng dụng. Extra `colab` trong `pyproject.toml` ghi dependency;
+  cài lại bằng `uv pip install --python .venv/bin/python -e '.[test,colab]'`.
+  CLI cần Python 3.12+, ứng dụng riêng vẫn hỗ trợ 3.11.
+- `scripts/colab` gọi `.venv/bin/colab`, giữ state tại `data/colab-cli/`.
+  Đã dọn môi trường `.tools/colab` và launcher global cũ đã xác minh đúng target.
+  Auth/log vẫn theo mặc định `~/.config/colab-cli/`; xem [COLAB_CLI.md](COLAB_CLI.md).
+- Không nâng dependency ứng dụng trong lần cài. `uv pip check`, version/help,
+  restart-kernel help và shell syntax đạt. Chưa đăng nhập hoặc restart kernel.
+- Main chạy full suite ngoài sandbox: 81 passed, 23 subtests passed, 1 failure
+  ở test portable Qwen3.5 do bootstrap cell hiện có `execution_count=3` thay
+  vì `None`; giữ notebook người dùng đang chạy. Lượt trong sandbox timeout
+  45 giây ở nhóm web. Không claim toàn bộ suite đạt.
+
+## Cài Colab CLI riêng — 15/10/2026
+
+- Theo yêu cầu người dùng, cài `google-colab-cli==0.7.4` vào
+  `.tools/colab/google-colab-cli`, thêm executable `scripts/colab` và ignore
+  `/.tools/colab/`. Giữ `.venv` ứng dụng riêng. `uv` còn tạo launcher
+  `~/.local/bin/colab` trỏ bản cài trong repo.
+- Wrapper giữ session metadata dưới `data/colab-cli/`; auth/log của CLI dùng
+  mặc định `~/.config/colab-cli/`. Xem [COLAB_CLI.md](COLAB_CLI.md).
+- Đã kiểm version/help/restart-kernel help/shell syntax và ignore paths.
+  Chưa đăng nhập, cấp runtime hoặc restart. Cần user hoàn tất OAuth qua terminal
+  và xác định đúng kernel; runtime VS Code chưa có metadata CLI có thể hiện `[?]`,
+  không được đoán kernel để restart. Google Colab extension VS Code 0.9.7 đã có.
+
+## Thêm notebook Qwen3.5-4B — 15/10/2026
+
+- Theo yêu cầu người dùng, thêm `notebooks/p0_qwen35_benchmark.ipynb` bên cạnh
+  hai notebook cũ. Model `Qwen/Qwen3.5-4B`, pin revision
+  `851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a`; Transformers 5.3.0,
+  accelerate 1.11.0, bitsandbytes 0.48.2. Chi tiết/nguồn ở [P0_MODELS.md](P0_MODELS.md).
+- Colab Free/T4: text-only `Qwen3_5ForCausalLM`, NF4/double quant, float16,
+  SDPA, batch 1, source/input/output/context = 768/2048/2048/4096, greedy,
+  seed 0, tắt thinking trong template và snapshot. Loader ánh xạ text weights,
+  kiểm loading info/context/revision trước sinh. Không nạp vision model.
+- Corpus mặc định `MyDrive/p0/corpus.json`, `LIMIT=1` thử một chunk;
+  đổi `None` để resume toàn bộ. Mỗi model dùng runtime riêng; kết quả Qwen3.5
+  nằm trong `runs/Qwen3.5-4B-<snapshot>`. Giữ baseline trước đọc output.
+  Không tự tăng trần GPU đã chốt, chưa upload notebook mới lên Drive.
+- Builder refresh bootstrap cả ba notebook, giữ model/config hai bản cũ;
+  notebook mới dùng progress/OOM guard có sẵn. Main kiểm 46 test P0 + real
+  bundles/runner đạt; cả ba notebook khớp source nhúng, syntax hợp lệ, không
+  outputs/execution counts. Chưa cài stack GPU, chạy Colab/model/tokenizer thật,
+  đo VRAM/tốc độ/chất lượng hoặc kiểm reconnect Drive thật.
+
 ## P0 hiện tại và notebook đã làm sạch — 15/10/2026
 
 - Chưa có benchmark hoàn tất hoặc quyết định go/no-go. Các lượt Qwen2.5 trước

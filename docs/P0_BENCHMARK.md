@@ -1,6 +1,17 @@
 # Chuẩn bị benchmark P0
 
-**Chưa chạy model benchmark, chưa có go/no-go.**
+**Trạng thái 15/10/2026: Qwen3.5 smoke kỹ thuật đạt; full run đang chạy/resume.
+Benchmark hoàn tất/chất lượng và go/no-go chưa có.**
+
+Cập nhật 15/10/2026: bổ sung [notebook Qwen3.5-4B](../notebooks/p0_qwen35_benchmark.ipynb)
+bên cạnh hai notebook cũ, theo [cấu hình Colab Free](P0_MODELS.md).
+Bản mới mặc định `LIMIT=1` thử một chunk trên corpus full; sau khi kiểm tra,
+đặt `LIMIT=None` để resume các chunk còn lại. Chạy mỗi model trên runtime GPU
+riêng. Qwen3.5 đã chạy thật qua CLI trên T4; một chunk hoàn tất kỹ thuật và lượt
+full đã resume trên cùng runtime hiện có. Không mở thêm phiên hoặc tăng ngân sách.
+Các ghi chép A/B dưới đây là thiết kế hai ứng viên ban đầu;
+khi chấm thêm ứng viên C, giữ cùng năm chương, baseline và rubric, thêm dòng
+review cho C và cân bằng thứ tự ba ứng viên. Không suy ra kết quả từ test offline.
 
 Cập nhật 14/10/2026: đã nhận đủ `data/p0/text/ch01.txt`–`ch05.txt`.
 Đã chuẩn bị corpus full và hai notebook chạy riêng từng model; nguồn TXT giữ
@@ -8,9 +19,12 @@ nguyên, URL ch03–ch05 và quyền nguồn chưa xác minh. Ch01–ch02 dùng 
 ch03–ch05 dùng Irene; chưa đối chiếu khác biệt bản nguồn. Những ghi chép thiếu
 ba chương/smoke dưới đây là lịch sử chuẩn bị trước lần cập nhật này.
 Hai notebook và corpus full đã lên Drive; corpus được đọc lại xác minh đúng bytes.
-Cấu hình hiện tại: `MyDrive/p0/corpus.json`, `LIMIT=None`, mỗi model một phiên GPU
-riêng. Qwen2.5 đã có log tải model/chunk/resume/checkpoint; Qwen3 đang chạy được
-giữ nguyên theo người dùng. Xem HANDOFF để lấy link và giới hạn kiểm chứng.
+Cấu hình corpus full: `MyDrive/p0/corpus.json`; notebook Run all vẫn hỗ trợ,
+script CLI là đường chạy hiện tại của Qwen3.5. Smoke `ch01-0000` đạt
+`technical_complete` (830 input/922 output tokens, EOS). Lượt full đã resume
+`1/18`; tại quan sát gần nhất hoàn tất 4/18 và đang xử lý `ch02-0001`.
+Đây là trạng thái theo thời điểm, không đảm bảo runtime vẫn hoạt động. Xem HANDOFF
+để biết giới hạn kiểm chứng; không chạy notebook đồng thời trên cùng kernel.
 Người dùng cho phép sinh bản máy trước, dịch tay sau; không đọc output trước
 khi hoàn thành baseline. Notebook chỉ in trạng thái/counts, bản dịch lưu riêng. Có runner/notebook thử nghiệm độc lập;
 ứng dụng P1 vẫn dùng provider giả. Không mở tích hợp provider hoặc crawler P4; EPUB import local được mở riêng
@@ -142,16 +156,19 @@ Chạy A và B ở phiên tách biệt để không giữ hai model trong VRAM.
 Package pins chưa kiểm thử Colab; nếu thiếu GPU, lỗi quyền/OOM thì ghi lại và dừng,
 không mua tài nguyên hoặc retry vô hạn. Notebook người dùng lưu trước đó có GPUcheck `CUDA: True`, `GPU: Tesla T4`;
 metadata riêng ghi đây là output đã lưu do main quan sát, không phải xác nhận
-phiên đang sống hoặc model đã chạy. Phiên Colab của bạn chưa có công cụ điều khiển được kết nối
-với phiên làm việc này; thực thi notebook vẫn do bạn bấm chạy.
+phiên đang sống hoặc model đã chạy. Cập nhật 15/10/2026: đã cài và đăng nhập
+[Colab CLI](COLAB_CLI.md), gắn đúng kernel Qwen3.5 đang mở trong VS Code.
+Luồng điều khiển qua CLI không cần bấm từng cell; xem HANDOFF để biết kết quả
+kiểm chứng mới nhất, không suy ra GPU inference đạt chỉ từ việc kết nối CLI.
 
 Khi sửa runner/validator được nhúng, tái sinh notebook bằng
 `python3 benchmarks/p0/build_notebook.py` rồi chạy test offline liên quan.
 Notebook nhúng ba file mã tĩnh (`runner.py`, `app/bundles.py`, `app/__init__.py`),
 không cần repo trên Drive.
 
-CLI local `python benchmarks/p0/runner.py --help` chỉ kiểm tra giao diện;
-chạy model thật, checkpoint và reconnect vẫn cần người dùng thực thi notebook.
+CLI local `python benchmarks/p0/runner.py --help` chỉ kiểm tra giao diện.
+Luồng CLI Colab thật mô tả tại [COLAB_AUTOMATION.md](COLAB_AUTOMATION.md);
+notebook vẫn là lựa chọn Run all độc lập. Không chạy cả hai trên cùng kernel.
 
 Thử một chunk, giữ Drive checkpoint, ngắt runtime rồi load lại/run đúng lệnh
 với cùng snapshot (đổi `LIMIT = None` khi đã kiểm tra). Xác minh result hợp lệ được

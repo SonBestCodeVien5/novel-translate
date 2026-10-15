@@ -5,7 +5,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 NOTEBOOK = ROOT / 'notebooks/p0_benchmark.ipynb'
+QWEN25_NOTEBOOK = ROOT / 'notebooks/p0_qwen25_benchmark.ipynb'
+QWEN35_NOTEBOOK = ROOT / 'notebooks/p0_qwen35_benchmark.ipynb'
 SOURCES = ('app/__init__.py', 'app/bundles.py', 'benchmarks/p0/runner.py')
+QWEN35 = 'Qwen/Qwen3.5-4B'
+QWEN35_REVISION = '851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a'
 
 
 def bootstrap_source():
@@ -33,6 +37,42 @@ def refresh(notebook):
     raise ValueError('Notebook is missing the p0_bootstrap cell.')
 
 
+def qwen35_notebook(base, progress_template):
+    notebook = json.loads(json.dumps(base))
+    notebook['cells'][0]['source'] = ['# P0 EN → VI benchmark: Qwen3.5-4B\n',
+        'Chọn Colab miễn phí, GPU và chạy tương tác; mỗi runtime chỉ chạy một model. Notebook dùng text-only causal LM; SQLite không được mở. Không tự retry khi OOM; quota GPU và VRAM thực tế chưa xác minh.\n']
+    notebook['cells'][2]['source'] = ["import subprocess, sys\n",
+        "subprocess.run([sys.executable, '-m', 'pip', 'install', 'transformers==5.3.0', 'accelerate==1.11.0', 'bitsandbytes==0.48.2'], check=True)\n"]
+    notebook['cells'][5]['source'] = [
+        'Notebook tự chứa runner và dùng corpus tại `MyDrive/p0/corpus.json`. Chọn GPU T4 rồi **Run all**, xác nhận mount Drive. `LIMIT=1` chỉ sinh một chunk để smoke; đổi thành `None` để chạy hết và resume cùng snapshot. Output giữ checkpoint từng chunk, kiểm tra mọi checkpoint và không ghi đè file hiện có. Hoàn tất baseline dịch tay đủ 5 chương trước khi xem output.\n']
+    notebook['cells'][6]['source'] = [
+        "from pathlib import Path\n",
+        "import sys\n",
+        "sys.path.insert(0, str(REPO))\n",
+        "from app.bundles import digest, load_json\n",
+        "from benchmarks.p0.runner import CONFIG, apply_model_profile, validate_corpus\n",
+        "CORPUS = Path('/content/drive/MyDrive/p0/corpus.json')\n",
+        f"MODEL = {QWEN35!r}\n",
+        f"REVISION = {QWEN35_REVISION!r}\n",
+        "apply_model_profile(MODEL)  # Applied before snapshot and again by runner.main.\n",
+        "LIMIT = 1  # Smoke one chunk; set None to run all remaining chunks.\n",
+        "assert CORPUS.is_file(), 'Copy corpus riêng vào Drive rồi sửa CORPUS.'\n",
+        "corpus = validate_corpus(load_json(CORPUS.read_bytes()))\n",
+        "snapshot = digest({'corpus': corpus, 'model': MODEL, 'revision': REVISION, 'config': CONFIG})\n",
+        "OUTPUT = Path('/content/drive/MyDrive/p0/runs') / (MODEL.split('/')[-1] + '-' + snapshot)\n",
+        "print('Mode:', corpus.get('mode', 'full'), 'chapters:', len(corpus['chapters']), 'output:', OUTPUT)\n",
+        "print('Profile:', CONFIG)\n",
+    ]
+    notebook['cells'][7] = json.loads(json.dumps(progress_template))
+    notebook['metadata'].setdefault('kernelspec', {'display_name': 'Python 3', 'language': 'python', 'name': 'python3'})
+    return refresh(notebook)
+
+
 if __name__ == '__main__':
-    notebook = refresh(json.loads(NOTEBOOK.read_text(encoding='utf-8')))
-    NOTEBOOK.write_text(json.dumps(notebook, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
+    base = refresh(json.loads(NOTEBOOK.read_text(encoding='utf-8')))
+    NOTEBOOK.write_text(json.dumps(base, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
+    qwen25 = refresh(json.loads(QWEN25_NOTEBOOK.read_text(encoding='utf-8')))
+    QWEN25_NOTEBOOK.write_text(json.dumps(qwen25, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
+    progress = json.loads(QWEN25_NOTEBOOK.read_text(encoding='utf-8'))['cells'][7]
+    qwen35 = qwen35_notebook(base, progress)
+    QWEN35_NOTEBOOK.write_text(json.dumps(qwen35, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')

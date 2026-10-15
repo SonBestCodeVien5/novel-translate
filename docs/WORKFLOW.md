@@ -6,8 +6,9 @@ Bắt đầu từ [AGENTS.md](../AGENTS.md), workflow này rồi [HANDOFF.md](HA
 HANDOFF ghi trạng thái vận hành mới nhất; PLAN/ROADMAP vẫn quyết định hợp đồng
 và phạm vi. Chỉ đọc phần liên quan khi đổi phạm vi, không nạp toàn bộ docs mỗi
 nhiệm vụ. Dùng vài lần đọc có mục tiêu và `rg` giới hạn vào luồng cần sửa.
-Hiện tập trung P0; P1 fake có bằng chứng lịch sử ở [P1.md](P1.md), chưa có kết
-quả model thật. Khi làm pipeline/glossary/resume, đọc
+Hiện tập trung P0; P1 fake có bằng chứng lịch sử ở [P1.md](P1.md). Qwen3.5 đã
+qua smoke model thật và lượt full đang resume; chưa có benchmark hoàn tất hay
+kết luận chất lượng. Khi làm pipeline/glossary/resume, đọc
 [skill staging](../codex-setup/skills/novel-translation/SKILL.md).
 
 ## Phong cách làm việc

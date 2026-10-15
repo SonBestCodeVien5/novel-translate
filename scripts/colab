@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+repo=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+mkdir -p "$repo/data/colab-cli"
+exec "$repo/.venv/bin/colab" \
+  --config "$repo/data/colab-cli/sessions.json" "$@"

@@ -1,14 +1,15 @@
 # Roadmap theo cổng kiểm chứng
 
-Trạng thái: **P1 local fake đã kiểm thử; P2 có thêm vertical slice v2 offline cho
-tokenizer planner, file runner, SQLite local và CLI**. Chưa chạy tokenizer/model,
-GPU, Drive hoặc Colab thật; P0 chưa benchmark; P2 export EPUB/runtime orchestration,
-P3–P4 chưa hoàn thành.
+Trạng thái: **P1 local fake đã kiểm thử; P2 có vertical slice v2 offline; P0
+Qwen3.5 đã qua smoke kỹ thuật trên T4 và full run đang resume qua CLI.** Chưa có
+benchmark P0 hoàn tất/go-no-go hoặc xác minh chất lượng. P2 export EPUB/runtime
+orchestration, P3–P4 chưa hoàn thành.
 Không gắn lịch giao hàng khi chưa có phép đo. Bằng chứng/giới hạn P1: [P1.md](P1.md).
 Kiến trúc, dữ liệu và hợp đồng batch: [PLAN.md](PLAN.md).
 Người dùng đã chốt EN → VI, 0 đồng, Colab miễn phí theo phiên, văn phong
 tiếng Việt tự nhiên giữ giọng nhân vật/tên riêng, tối đa 2 lần thử/model và
-tổng 4 phiên (14/10/2026). P1 dùng fake provider; P0 chưa benchmark.
+tổng 4 phiên (14/10/2026). P1 dùng fake provider; P0 benchmark đang chạy, chưa
+có go/no-go.
 
 ## Backlog và definition of done
 
@@ -33,8 +34,11 @@ tables/import CLI; synthetic tests cover idempotency, conflict, source staleness
 crash recovery and preservation of v1 revisions. Chưa chạy tokenizer/model thật.
 P2-02 chỉ có EPUB import CLI theo yêu cầu ngày 14/10/2026 (xem EPUB_IMPORT.md),
 chưa đạt DoD export/reader. P2-03 Colab CLI trên WSL và P2-04 tự động điều phối
-chưa triển khai hoặc kiểm chứng. P0/provider-quality gate chưa đạt; không coi
-offline tests là bằng chứng runtime/chất lượng. Tiêu chí phase bên dưới là điều
+chưa đạt DoD: runtime T4/CLI auth và P0 smoke đã kiểm chứng, nhưng chưa thử
+truyền batch v2, checkpoint ngoài VM hoặc ngắt/resume. Script `run_p0_colab.py`
+chỉ điều khiển benchmark notebook P0, không triển khai batch v2→backend local
+và chưa nối UI; P2-04 chưa hoàn tất. P0/provider-quality gate chưa đạt; không coi
+smoke kỹ thuật hoặc offline tests là bằng chứng chất lượng. Tiêu chí phase bên dưới là điều
 kiện bổ sung, không thay thế DoD của task.
 
 ## P0 — Kiểm chứng chất lượng và chi phí
@@ -85,7 +89,7 @@ Phụ thuộc: P1 đạt exit; chọn provider qua P0 trước khi coi kết qu�
   chạy end-to-end trên source fixture có quyền trước khi coi P2-01 acceptance đạt.
   Không chia lại chunk/job cũ hoặc làm mất revision.
 - Notebook đọc manifest từ Drive, chạy tuần tự, ghi bền vững từng result hoàn tất ngoài VM và báo lỗi rõ; giữ làm fallback.
-- P2-03 kiểm chứng CLI trên WSL/tài khoản thực: auth tương tác, quyền truy cập, GPU/quota, truyền file, lưu result ngoài VM và ngắt/resume. Đây là phương án tạm, chưa được thử; nếu không đạt thì ghi lý do hoãn và tiếp tục notebook.
+- P2-03 kiểm chứng CLI trên WSL/tài khoản thực: auth tương tác, quyền truy cập, GPU/quota, truyền file v2, lưu result ngoài VM và ngắt/resume. Auth/runtime T4/P0 smoke đã thử; phần batch v2 còn cần kiểm chứng. Nếu không đạt thì ghi lý do hoãn và tiếp tục notebook.
 - P2-04 phụ thuộc P2-03 đạt: script local theo yêu cầu xuất batch, tạo phiên, chạy runner, nhận/validate/import qua backend local và giải phóng phiên. Dùng chung batch, validator/checkpoint với notebook; không thêm service luôn bật.
 - Không chờ cuối job mới tải kết quả; file partial/conflict không được nhập đè sửa tay. Auth/permission cần người dùng khi được yêu cầu, secret không nằm trong bundle/log.
 - Retry theo giới hạn PLAN; không tự cấp lại GPU vô hạn hoặc vượt trần thử/ngân sách. MVP ưu tiên người dùng bấm resume sau mất phiên.

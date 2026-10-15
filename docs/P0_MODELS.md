@@ -1,4 +1,51 @@
-# Hai ứng viên P0 EN → VI
+# Các ứng viên P0 EN → VI
+
+## Bổ sung Qwen3.5-4B — 15/10/2026
+
+Cập nhật kiểm chứng: đã chạy thật một chunk trên T4 qua CLI, `technical_complete`,
+830 input / 922 output tokens, EOS; session ghi đúng revision pin, load khoảng
+34,29 giây. Đã xử lý `BatchEncoding` của Transformers 5.3 và config nested thiếu
+commit hash bằng kiểm tra SHA snapshot đã resolve. Đây là smoke kỹ thuật,
+chưa đo/chấm đủ năm chương hoặc có quyết định chất lượng. Luồng tự động ở
+[COLAB_AUTOMATION.md](COLAB_AUTOMATION.md); các ghi chú chưa chạy bên dưới là
+trạng thái lúc chuẩn bị notebook.
+
+Theo yêu cầu người dùng, thêm [notebook riêng](../notebooks/p0_qwen35_benchmark.ipynb)
+cho `Qwen/Qwen3.5-4B`, revision
+`851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a`. Dùng cùng corpus/glossary,
+prompt, seed 0 và greedy để so với hai ứng viên ban đầu; tắt thinking bằng
+`enable_thinking=False` trong chat template, ghi cấu hình vào snapshot.
+Model này có kiến trúc vision-language; runner chỉ nạp phần ngôn ngữ bằng
+`Qwen3_5ForCausalLM`, không xử lý hình ảnh.
+
+Cấu hình nhắm Colab Free/T4: NF4 4-bit + double quantization, compute/load
+float16, batch 1, attention SDPA, source target 768, input tối đa 2.048,
+output reserve 2.048, context chạy 4.096 token. Không dùng BF16 hoặc cài
+FlashAttention/FLA/causal-conv1d; đường PyTorch dự phòng có thể chậm.
+Notebook mới pin `transformers==5.3.0`, `accelerate==1.11.0`,
+`bitsandbytes==0.48.2`; không dùng pin Transformers 4.57.3 của hai bản cũ.
+
+Trên runtime Qwen3.5 hiện có, smoke một chunk đã đạt `technical_complete`
+(830 input / 922 output tokens, EOS; revision pin được xác minh). Lượt tự động
+đã resume từ checkpoint và tại quan sát gần nhất hoàn tất 4/18 chunk, đang xử lý
+chunk thứ năm. Đây là snapshot trạng thái, chưa phải kết quả full bền vững.
+Notebook cũng có thể chạy bằng Run all độc lập; không chạy đồng thời với script
+trên cùng kernel.
+
+Chọn runtime GPU, chỉ nạp một model. Mặc định `LIMIT=1` thử một chunk
+trên corpus full tại `MyDrive/p0/corpus.json`; đây chưa phải benchmark đủ
+năm chương. Đặt `LIMIT=None` để tiếp tục toàn bộ chunk cùng snapshot;
+checkpoint được kiểm tra trước khi resume, output nằm riêng dưới
+`runs/Qwen3.5-4B-<snapshot>`. Không đọc bản dịch trước khi xong baseline.
+Đã dùng runtime T4 hiện có; chưa đo/chấm đủ năm chương, VRAM, tốc độ tổng thể
+hoặc chất lượng. Không bảo đảm Colab cấp T4/quota. Không tự tăng trần bốn phiên
+GPU đã chốt hoặc tự khởi chạy phiên mới.
+
+Căn cứ: [model/config chính thức tại revision cố định](https://huggingface.co/Qwen/Qwen3.5-4B/tree/851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a),
+[Transformers 5.3 Qwen3.5](https://huggingface.co/docs/transformers/v5.3.0/model_doc/qwen3_5),
+[mã loader/model 5.3.0](https://github.com/huggingface/transformers/blob/v5.3.0/src/transformers/models/qwen3_5/modeling_qwen3_5.py).
+
+## Hai ứng viên ban đầu
 
 Đối chiếu metadata chính thức ngày 14/10/2026; **chưa chạy GPU hay chấm chất lượng**.
 Hai repo public, không gated tại lần kiểm tra; Apache 2.0 cho model không cấp

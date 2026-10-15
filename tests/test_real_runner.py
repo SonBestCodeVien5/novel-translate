@@ -15,7 +15,7 @@ from app.real_runner import huggingface_generate, main, run_manifest
 class Tokenizer:
     chat_template = 'template'
     def encode(self, text, add_special_tokens=False): return list(text)
-    def apply_chat_template(self, messages, tokenize, add_generation_prompt):
+    def apply_chat_template(self, messages, tokenize, add_generation_prompt, **kwargs):
         return list(range(1, sum(len(m['content']) for m in messages) + 1))
 
 
@@ -200,6 +200,67 @@ def _hf_mocks(monkeypatch, m, ids=None, tokenizer_commit=None, model_commit=None
     if hasattr(huggingface_generate, '_cache'):
         del huggingface_generate._cache
     return state
+
+
+def test_qwen35_loading_uses_pinned_text_loader_and_mapping_ids(monkeypatch, tmp_path):
+    config_file = tmp_path / 'config.json'; config_file.write_text('{"model_type":"qwen3_5"}')
+    m = manifest(real.QWEN35)
+    state = {'loads': 0, 'kwargs': None}
+    tokenizer = types.SimpleNamespace(chat_template='template', pad_token_id=0,
+        apply_chat_template=lambda *a, **kw: {'input_ids': m['chunks'][0]['input_ids']},
+        decode=lambda values, skip_special_tokens: 'mock translation', init_kwargs={})
+    model = types.SimpleNamespace(config=types.SimpleNamespace(_commit_hash=None,
+        text_config=types.SimpleNamespace(max_position_embeddings=4096)),
+        generation_config=types.SimpleNamespace(eos_token_id=99), eval=lambda: None)
+    def from_model(*args, **kwargs):
+        state['loads'] += 1; state['kwargs'] = kwargs
+        return model, {'missing_keys': [], 'mismatched_keys': [], 'error_msgs': []}
+    tr = types.ModuleType('transformers')
+    tr.AutoModelForCausalLM = types.SimpleNamespace(from_pretrained=lambda *a, **kw: pytest.fail('wrong loader'))
+    tr.Qwen3_5ForCausalLM = types.SimpleNamespace(from_pretrained=from_model)
+    tr.BitsAndBytesConfig = lambda **kw: kw
+    tr.AutoTokenizer = types.SimpleNamespace(from_pretrained=lambda *a, **kw: tokenizer)
+    utils = types.ModuleType('transformers.utils'); hubutils = types.ModuleType('transformers.utils.hub')
+    hubutils.cached_file = lambda *a, **kw: str(config_file)
+    hubutils.extract_commit_hash = lambda *a, **kw: m['snapshot']['model_revision']
+    utils.hub = hubutils
+    monkeypatch.setitem(sys.modules, 'transformers', tr)
+    monkeypatch.setitem(sys.modules, 'transformers.utils', utils)
+    monkeypatch.setitem(sys.modules, 'transformers.utils.hub', hubutils)
+    monkeypatch.setattr(real, 'load_tokenizer', lambda *a: (tokenizer, m['snapshot']['tokenizer_revision']))
+    torch = types.ModuleType('torch'); torch.cuda = types.SimpleNamespace(is_available=lambda: True)
+    torch.float16, torch.float32, torch.long = 'fp16', 'fp32', 'long'
+    torch.tensor = lambda values, **kw: _Tensor(values); torch.ones_like = lambda value: value
+    torch.manual_seed = lambda seed: None; torch.inference_mode = lambda: _inference_mode({'inference': False})
+    monkeypatch.setitem(sys.modules, 'torch', torch)
+    model.generate = lambda **kwargs: _Output([[0] * len(m['chunks'][0]['input_ids']) + [99]])
+    if hasattr(huggingface_generate, '_cache'): del huggingface_generate._cache
+    out = huggingface_generate(m, m['chunks'][0])
+    assert out['finish_reason'] == 'eos' and state['loads'] == 1
+    assert state['kwargs']['attn_implementation'] == 'sdpa'
+    assert state['kwargs']['key_mapping'] == {r'^model\.language_model\.': 'model.'}
+    assert state['kwargs']['output_loading_info'] is True
+
+    del huggingface_generate._cache
+    hubutils.extract_commit_hash = lambda *a, **kw: 'wrong-revision'
+    with pytest.raises(real.DomainError):
+        huggingface_generate(m, m['chunks'][0])
+    assert state['loads'] == 1 and not hasattr(huggingface_generate, '_cache')
+
+    hubutils.extract_commit_hash = lambda *a, **kw: m['snapshot']['model_revision']
+    model.config.text_config.max_position_embeddings = 2048
+    with pytest.raises(real.DomainError, match='context'):
+        huggingface_generate(m, m['chunks'][0])
+    assert state['loads'] == 2 and not hasattr(huggingface_generate, '_cache')
+
+    model.config.text_config.max_position_embeddings = 4096
+    def incomplete(*args, **kwargs):
+        state['loads'] += 1
+        return model, {'missing_keys': ['model.weight'], 'mismatched_keys': [], 'error_msgs': []}
+    tr.Qwen3_5ForCausalLM.from_pretrained = incomplete
+    with pytest.raises(real.DomainError, match='did not load completely'):
+        huggingface_generate(m, m['chunks'][0])
+    assert state['loads'] == 3 and not hasattr(huggingface_generate, '_cache')
 
 
 def test_huggingface_adapter_uses_pinned_fp32_cuda_and_inference_mode(monkeypatch):

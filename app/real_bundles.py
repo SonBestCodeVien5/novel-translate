@@ -12,7 +12,9 @@ digest = base.digest
 text_hash = base.text_hash
 now = base.now
 
+QWEN35 = 'Qwen/Qwen3.5-4B'
 MODELS = {
+    QWEN35: '851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a',
     'Qwen/Qwen3-4B-Instruct-2507': 'cdbee75f17c01a7cc42f958dc650907174af0554',
     'Qwen/Qwen2.5-7B-Instruct': 'a09a35458c702b33eeacc393d103063234e8bc28',
 }
@@ -25,9 +27,12 @@ MAX_CHUNKS = 10000
 
 
 def _snapshot(snap):
+    if type(snap) is not dict:
+        raise DomainError('Invalid model snapshot.')
+    qwen35 = snap.get('model_id') == QWEN35
     base.fields(snap, 'model_id model_revision tokenizer_id tokenizer_revision template template_hash '
             'source_language target_language parameters prompt prompt_hash glossary glossary_hash '
-            'context context_hash chunker chunker_hash quantization')
+            'context context_hash chunker chunker_hash quantization' + (' chat_template_kwargs' if qwen35 else ''))
     if type(snap['model_id']) is not str or snap['model_id'] not in MODELS or type(snap['model_revision']) is not str or snap['model_revision'] != MODELS[snap['model_id']]:
         raise DomainError('Unsupported or unpinned model revision.')
     if snap['tokenizer_id'] != snap['model_id'] or snap['tokenizer_revision'] != snap['model_revision']:
@@ -42,10 +47,11 @@ def _snapshot(snap):
     if snap['source_language'] != 'en' or snap['target_language'] != 'vi':
         raise DomainError('Only the pinned EN-to-VI contract is supported.')
     base.fields(snap['parameters'], 'do_sample max_new_tokens seed batch_size attention_implementation')
+    expected_parameters = {'do_sample': False, 'max_new_tokens': OUTPUT_TOKENS, 'seed': 0,
+                           'batch_size': 1, 'attention_implementation': 'sdpa' if qwen35 else 'eager'}
     if (type(snap['parameters']['do_sample']) is not bool or
         any(type(snap['parameters'][k]) is not int for k in ('max_new_tokens', 'seed', 'batch_size')) or
-        snap['parameters'] != {'do_sample': False, 'max_new_tokens': OUTPUT_TOKENS, 'seed': 0,
-                              'batch_size': 1, 'attention_implementation': 'eager'}):
+        snap['parameters'] != expected_parameters):
         raise DomainError('Unsupported generation parameters.')
     base.fields(snap['quantization'], 'load_in_4bit bnb_4bit_quant_type bnb_4bit_use_double_quant bnb_4bit_compute_dtype')
     dtype = 'float32' if snap['model_id'] == 'Qwen/Qwen2.5-7B-Instruct' else 'float16'
@@ -53,6 +59,11 @@ def _snapshot(snap):
         snap['quantization'] != {'load_in_4bit': True, 'bnb_4bit_quant_type': 'nf4',
                                 'bnb_4bit_use_double_quant': True, 'bnb_4bit_compute_dtype': dtype}):
         raise DomainError('Unsupported quantization settings.')
+    if qwen35:
+        if (type(snap['chat_template_kwargs']) is not dict or
+            set(snap['chat_template_kwargs']) != {'enable_thinking'} or
+            snap['chat_template_kwargs']['enable_thinking'] is not False):
+            raise DomainError('Unsupported Qwen3.5 chat template settings.')
     base.fields(snap['prompt'], 'version system_text user_prefix glossary_prefix')
     if snap['prompt'] != {'version': 'real-1', 'system_text': SYSTEM,
                           'user_prefix': 'Glossary:\n', 'glossary_prefix': '\n\nSource fiction:\n'}:
@@ -91,6 +102,9 @@ def default_snapshot(model_id, revision, template):
             'prompt': prompt, 'prompt_hash': digest(prompt), 'glossary': glossary,
             'glossary_hash': digest(glossary), 'context': context, 'context_hash': digest(context),
             'chunker': chunker, 'chunker_hash': digest(chunker)}
+    if model_id == QWEN35:
+        snap['parameters']['attention_implementation'] = 'sdpa'
+        snap['chat_template_kwargs'] = {'enable_thinking': False}
     _snapshot(snap)
     return snap
 
@@ -118,8 +132,15 @@ def _messages(source, snap):
 
 
 def _token_ids(tokenizer, source, snap):
+    from collections.abc import Mapping
     ids = tokenizer.apply_chat_template(_messages(source, snap), tokenize=True,
-                                        add_generation_prompt=True)
+                                        add_generation_prompt=True, **snap.get('chat_template_kwargs', {}))
+    if isinstance(ids, Mapping):
+        ids = ids.get('input_ids')
+        if hasattr(ids, 'tolist'):
+            ids = ids.tolist()
+        if type(ids) is list and ids and type(ids[0]) is list and len(ids) == 1:
+            ids = ids[0]
     if type(ids) is not list or any(type(i) is not int or i < 0 for i in ids):
         raise DomainError('Tokenizer returned invalid input IDs.')
     return ids
@@ -251,7 +272,7 @@ def provenance(manifest):
             'glossary_hash': s['glossary_hash'], 'context_hash': s['context_hash'],
             'chunker_hash': s['chunker_hash'], 'parameters': s['parameters'],
             'quantization': s['quantization'],
-            'runner_version': RUNNER_VERSION}
+            'runner_version': RUNNER_VERSION, **({'chat_template_kwargs': s['chat_template_kwargs']} if s['model_id'] == QWEN35 else {})}
 
 
 def make_result(manifest, chunk, generated, started_at, completed_at):

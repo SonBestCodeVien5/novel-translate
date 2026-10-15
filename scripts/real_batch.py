@@ -36,7 +36,8 @@ def main(argv=None):
             try:
                 tokenizer, resolved_commit = load_tokenizer(args.model, args.revision)
             except ImportError as exc:
-                raise DomainError('Install transformers==4.57.3 to load the pinned tokenizer.') from exc
+                version = '5.3.0' if args.model == 'Qwen/Qwen3.5-4B' else '4.57.3'
+                raise DomainError(f'Install transformers=={version} to load the pinned tokenizer.') from exc
             if resolved_commit != args.revision:
                 raise DomainError('Loaded tokenizer revision does not match the requested pin.')
             snap = default_snapshot(args.model, args.revision, tokenizer.chat_template)

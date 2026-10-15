@@ -1,7 +1,9 @@
 import copy
 import sys
+import tempfile
 import types
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -18,6 +20,12 @@ class TinyTokenizer:
     def apply_chat_template(self, messages, tokenize, add_generation_prompt):
         assert tokenize and add_generation_prompt
         return list(range(1, sum(len(m['content']) for m in messages) + 1))
+
+
+class MappingTokenizer(TinyTokenizer):
+    def apply_chat_template(self, messages, tokenize, add_generation_prompt, **kwargs):
+        assert kwargs == {'enable_thinking': False}
+        return {'input_ids': super().apply_chat_template(messages, tokenize, add_generation_prompt)}
 
 
 def batch(text='Héllo. ' + 'A long sentence; ' * 220 + '終わり！'):
@@ -130,3 +138,20 @@ def test_wrong_resolved_tokenizer_commit_fails_before_loading(monkeypatch):
     with pytest.raises(real.DomainError):
         real.load_tokenizer('Qwen/Qwen3-4B-Instruct-2507', real.MODELS['Qwen/Qwen3-4B-Instruct-2507'])
     assert calls == []
+
+
+def test_qwen35_profile_kwargs_and_mapping_ids(tmp_path, monkeypatch):
+    import sys
+    snap = real.default_snapshot(real.QWEN35, real.MODELS[real.QWEN35], 'mock-template')
+    assert snap['parameters']['attention_implementation'] == 'sdpa'
+    assert snap['chat_template_kwargs'] == {'enable_thinking': False}
+    book = {'id': str(uuid.uuid4()), 'source_language': 'en', 'target_language': 'vi',
+            'source_hash': bundles.text_hash('One sentence.')}
+    manifest = real.build_manifest(book, [{'id': str(uuid.uuid4()), 'ordinal': 0,
+        'source_text': 'One sentence.'}], MappingTokenizer(), snap)
+    assert manifest['chunks'][0]['input_ids'] == real._token_ids(MappingTokenizer(), 'One sentence.', snap)
+    corrupt = copy.deepcopy(manifest)
+    corrupt['snapshot']['chat_template_kwargs']['enable_thinking'] = True
+    corrupt['snapshot']['template_hash'] = real.text_hash(corrupt['snapshot']['template'])
+    with pytest.raises(real.DomainError):
+        real.validate_manifest(corrupt)

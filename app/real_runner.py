@@ -1,6 +1,7 @@
 """File-only resumable runner for immutable real-model v2 batches."""
 import argparse
 import errno
+import json
 import uuid
 import warnings
 from pathlib import Path
@@ -94,26 +95,52 @@ def huggingface_generate(manifest, chunk):
             raise real.DomainError('Loaded tokenizer template differs from frozen snapshot.')
         if tokenizer_commit != snap['tokenizer_revision']:
             raise real.DomainError('Loaded tokenizer commit does not match snapshot.')
-        messages = real._messages(chunk['source_text'], snap)
-        ids = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True)
+        ids = real._token_ids(tokenizer, chunk['source_text'], snap)
         if ids != chunk['input_ids']:
             raise real.DomainError('Loaded tokenizer input IDs differ from frozen batch.')
+        if snap['model_id'] == real.QWEN35:
+            from transformers.utils.hub import cached_file, extract_commit_hash
+            config_path = cached_file(snap['model_id'], 'config.json', revision=snap['model_revision'])
+            config = json.loads(Path(config_path).read_text(encoding='utf-8'))
+            config_commit = extract_commit_hash(config_path, None)
+            if (config_commit != snap['model_revision'] or
+                config.get('_commit_hash') not in (None, snap['model_revision'])):
+                raise real.DomainError('Resolved model config does not match the pinned revision.')
         dtype = getattr(torch, snap['quantization']['bnb_4bit_compute_dtype'])
         quant = BitsAndBytesConfig(**{**snap['quantization'], 'bnb_4bit_compute_dtype': dtype})
-        model = AutoModelForCausalLM.from_pretrained(snap['model_id'], revision=snap['model_revision'],
+        loader = AutoModelForCausalLM
+        load_args = {}
+        if snap['model_id'] == real.QWEN35:
+            from transformers import Qwen3_5ForCausalLM
+            loader = Qwen3_5ForCausalLM
+            load_args = {'key_mapping': {r'^model\.language_model\.': 'model.'}, 'output_loading_info': True}
+        loaded = loader.from_pretrained(snap['model_id'], revision=snap['model_revision'],
             trust_remote_code=False, quantization_config=quant, torch_dtype=dtype,
-            attn_implementation=snap['parameters']['attention_implementation'], device_map={'': 0})
+            attn_implementation=snap['parameters']['attention_implementation'], device_map={'': 0}, **load_args)
+        if snap['model_id'] == real.QWEN35:
+            model, loading = loaded
+            if loading.get('missing_keys') or loading.get('mismatched_keys') or loading.get('error_msgs'):
+                raise real.DomainError('Qwen3.5 text checkpoint did not load completely.')
+        else:
+            model = loaded
         model.eval()
-        if getattr(model.config, '_commit_hash', None) != snap['model_revision']:
+        model_commit = getattr(model.config, '_commit_hash', None)
+        if snap['model_id'] == real.QWEN35:
+            if model_commit not in (None, snap['model_revision']):
+                raise real.DomainError('Loaded model commit does not match snapshot.')
+        elif model_commit != snap['model_revision']:
             raise real.DomainError('Loaded model commit does not match snapshot.')
+        model_config = getattr(model.config, 'text_config', model.config)
+        if getattr(model_config, 'max_position_embeddings', 0) < real.TOTAL_TOKENS:
+            raise real.DomainError('Pinned model context is below the frozen total token budget.')
         huggingface_generate._cache = (cache_key, tokenizer, model)
     else:
         _, tokenizer, model = cached
-        ids = tokenizer.apply_chat_template(real._messages(chunk['source_text'], snap), tokenize=True,
-                                            add_generation_prompt=True)
+        ids = real._token_ids(tokenizer, chunk['source_text'], snap)
         if ids != chunk['input_ids']:
             raise real.DomainError('Loaded tokenizer input IDs differ from frozen batch.')
-    if getattr(model.config, 'max_position_embeddings', 0) < real.TOTAL_TOKENS:
+    model_config = getattr(model.config, 'text_config', model.config)
+    if getattr(model_config, 'max_position_embeddings', 0) < real.TOTAL_TOKENS:
         raise real.DomainError('Pinned model context is below the frozen total token budget.')
     input_ids = torch.tensor([chunk['input_ids']], dtype=torch.long, device='cuda:0')
     attention_mask = torch.ones_like(input_ids)

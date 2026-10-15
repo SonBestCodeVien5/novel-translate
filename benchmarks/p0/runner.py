@@ -272,9 +272,10 @@ def main():
              'run_seconds': None, 'cost': None, 'error': None}
     load_start, run_start = time.perf_counter(), None
     try:
-        quant = BitsAndBytesConfig(**{**CONFIG['quantization'], 'bnb_4bit_compute_dtype': torch.float16})
+        compute_dtype = getattr(torch, CONFIG['quantization']['bnb_4bit_compute_dtype'])
+        quant = BitsAndBytesConfig(**{**CONFIG['quantization'], 'bnb_4bit_compute_dtype': compute_dtype})
         model = AutoModelForCausalLM.from_pretrained(args.model, revision=args.revision,
-                    trust_remote_code=False, quantization_config=quant, torch_dtype=torch.float16,
+                    trust_remote_code=False, quantization_config=quant, torch_dtype=compute_dtype,
                     device_map={'': 0}, attn_implementation=CONFIG['attention_implementation'])
         facts['actual_model_commit'] = getattr(model.config, '_commit_hash', None)
         if getattr(model.config, 'max_position_embeddings', 0) < CONFIG['context_tokens']:

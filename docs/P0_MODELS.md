@@ -22,13 +22,21 @@ sau template; reserve 2,048 output, context chạy 4,096; source target 768 toke
 batch 1. Chia chunk bằng tokenizer của từng model nên ranh giới có thể khác;
 chấm cùng năm chương và đối chiếu offsets, không so tốc độ chỉ theo số chunk.
 
-Riêng notebook Qwen2.5, sau lần chạy đầu dừng ở chunk đầu với 2.048 output
-tokens và đuôi token lặp, thử `repetition_penalty=1.1`. Giá trị được ghi vào
-config/snapshot/plan, tạo thư mục kết quả mới; các ngân sách token giữ nguyên.
-Đây là điều chỉnh thử nghiệm chưa chạy lại GPU, cần ghi khác biệt cấu hình
-khi so hai model. Checkpoint chưa hoàn tất cũ vẫn được giữ để đối chiếu.
+Riêng notebook Qwen2.5, hai lượt đã dừng ở chunk đầu với 2.048 output tokens
+và token lặp; `repetition_penalty=1.1` ở lượt hai không giải quyết được lỗi.
+Bản sửa tiếp theo bỏ phạt lặp này, dùng NF4 4-bit với compute float32 và các
+phần không lượng tử float32. Runner lấy precision từ config, không ép fp16.
+Snapshot/plan và thư mục kết quả đổi theo config; các ngân sách token giữ nguyên.
+[Qwen troubleshooting](https://qwen.readthedocs.io/en/v2.0/inference/chat.html#troubleshooting)
+cảnh báo float16 có thể gây mất ổn định số/lặp; đây là căn cứ thử precision,
+chưa chứng minh nguyên nhân trên phiên T4. Lượt thử cấu hình float32 sau đó OOM
+ngay khi nạp model, nên chưa có bằng chứng cấu hình này sinh ổn định hay chất
+lượng tốt hơn; xem trạng thái mới trong [HANDOFF](HANDOFF.md). Không chạy thêm
+lượt GPU khi chưa có quyết định riêng. Ghi khác biệt cấu hình khi so hai model.
 
-NF4 4-bit, double quantization, compute fp16. Notebook pin `transformers==4.57.3`,
+Hai notebook đều dùng NF4 4-bit và double quantization. Qwen3 dùng compute
+float16; notebook Qwen2.5 đặt compute float32 cho weights NF4 và các phần không
+lượng tử, theo cấu hình riêng sau lỗi lặp đã ghi ở trên. Notebook pin `transformers==4.57.3`,
 `accelerate==1.11.0`, `bitsandbytes==0.48.2`: **chưa kiểm thử trên Colab**.
 
 | Bộ nhớ (GiB) | A | B |

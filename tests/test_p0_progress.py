@@ -3,6 +3,8 @@ import json
 import copy
 from contextlib import redirect_stdout
 from pathlib import Path
+import sys
+import types
 from unittest.mock import patch
 
 import pytest
@@ -15,6 +17,22 @@ def progress_cell():
     return ''.join(notebook['cells'][7]['source'])
 
 
+def fake_torch():
+    torch = types.ModuleType('torch')
+
+    class OutOfMemoryError(RuntimeError):
+        pass
+
+    torch.cuda = types.SimpleNamespace(mem_get_info=lambda: (8 * 1024**3, 16 * 1024**3),
+                                       OutOfMemoryError=OutOfMemoryError)
+    return torch
+
+
+def execute_progress(namespace, torch=None):
+    with patch.dict(sys.modules, {'torch': torch or fake_torch()}):
+        exec(compile(progress_cell(), '<progress>', 'exec'), namespace)
+
+
 def test_qwen25_config_cell_changes_snapshot_and_runner_config(tmp_path):
     notebook = json.loads(Path('notebooks/p0_qwen25_benchmark.ipynb').read_text())
     source = ''.join(notebook['cells'][6]['source'])
@@ -24,13 +42,19 @@ def test_qwen25_config_cell_changes_snapshot_and_runner_config(tmp_path):
     original = copy.deepcopy(runner.CONFIG)
     baseline = runner.digest({'corpus': corpus(), 'model': runner.MODELS[1],
                               'revision': 'a09a35458c702b33eeacc393d103063234e8bc28', 'config': original})
+    baseline_plan = copy.deepcopy(runner.build_plan(corpus(), Tokenizer(), runner.MODELS[1],
+                                                   'a09a35458c702b33eeacc393d103063234e8bc28'))
     try:
         namespace = {'REPO': Path.cwd()}
         exec(compile(source, '<qwen25-config-cell>', 'exec'), namespace)
-        assert runner.CONFIG['generation']['repetition_penalty'] == 1.1
+        assert runner.CONFIG['quantization']['bnb_4bit_compute_dtype'] == 'float32'
         assert namespace['CONFIG'] is runner.CONFIG
         assert namespace['snapshot'] != baseline
         assert namespace['OUTPUT'].name == 'Qwen2.5-7B-Instruct-' + namespace['snapshot']
+        plan = runner.build_plan(corpus(), Tokenizer(), runner.MODELS[1],
+                                 'a09a35458c702b33eeacc393d103063234e8bc28')
+        assert plan['config']['quantization']['bnb_4bit_compute_dtype'] == 'float32'
+        assert runner.digest(plan) != runner.digest(baseline_plan)
     finally:
         runner.CONFIG.clear()
         runner.CONFIG.update(original)
@@ -63,9 +87,9 @@ def test_progress_saved_after_write_and_resume(tmp_path):
                  'CORPUS': tmp_path / 'corpus.json', 'OUTPUT': output, 'LIMIT': 1}
     with patch.object(runner, 'main', main), patch.object(runner, 'write_new', write):
         with redirect_stdout(logs):
-            exec(compile(progress_cell(), '<progress>', 'exec'), namespace)
+            execute_progress(namespace)
             first = (output / 'results' / (plan['chunks'][0]['id'] + '.json')).read_bytes()
-            exec(compile(progress_cell(), '<progress>', 'exec'), namespace)
+            execute_progress(namespace)
         assert runner.run is original_run
         assert runner.write_new is write
     assert runner.write_new is original_write
@@ -78,14 +102,33 @@ def test_progress_saved_after_write_and_resume(tmp_path):
 
 
 def test_progress_restores_globals_on_error(tmp_path):
-    import sys
     original_run, original_write, original_argv = runner.run, runner.write_new, sys.argv
     namespace = {'sys': sys, 'Path': Path, 'REPO': tmp_path, 'MODEL': runner.MODELS[1],
                  'REVISION': 'a' * 40, 'CORPUS': tmp_path / 'corpus.json',
                  'OUTPUT': tmp_path / 'run', 'LIMIT': None}
     with patch.object(runner, 'main', side_effect=RuntimeError('load failed')):
         with pytest.raises(RuntimeError, match='load failed'):
-            exec(compile(progress_cell(), '<progress>', 'exec'), namespace)
+            execute_progress(namespace)
+    assert (runner.run, runner.write_new, sys.argv) == (original_run, original_write, original_argv)
+
+
+def test_progress_wraps_cuda_oom_and_restores_globals(tmp_path):
+    torch = fake_torch()
+    original_run, original_write, original_argv = runner.run, runner.write_new, sys.argv
+    logs = io.StringIO()
+    private_marker = 'PRIVATE NOVEL TEXT'
+    oom = torch.cuda.OutOfMemoryError('CUDA out of memory while loading ' + private_marker)
+    namespace = {'sys': sys, 'Path': Path, 'REPO': tmp_path, 'MODEL': runner.MODELS[1],
+                 'REVISION': 'a' * 40, 'CORPUS': tmp_path / 'corpus.json',
+                 'OUTPUT': tmp_path / 'run', 'LIMIT': None}
+    with patch.object(runner, 'main', side_effect=oom), redirect_stdout(logs), \
+         pytest.raises(RuntimeError, match='Disconnect and delete runtime') as caught:
+        execute_progress(namespace, torch)
+    assert caught.value.__cause__ is oom
+    assert private_marker not in str(caught.value)
+    assert private_marker not in logs.getvalue()
+    assert 'GPU preflight PID=' in logs.getvalue()
+    assert 'free=8.00 GiB total=16.00 GiB' in logs.getvalue()
     assert (runner.run, runner.write_new, sys.argv) == (original_run, original_write, original_argv)
 
 
@@ -110,7 +153,7 @@ def test_progress_does_not_claim_save_when_write_fails(tmp_path):
                  'CORPUS': tmp_path / 'corpus.json', 'OUTPUT': tmp_path / 'run', 'LIMIT': None}
     with patch.object(runner, 'main', main), patch.object(runner, 'write_new', fail_result_write):
         with redirect_stdout(logs), pytest.raises(OSError, match='disk full'):
-            exec(compile(progress_cell(), '<progress>', 'exec'), namespace)
+            execute_progress(namespace)
         assert runner.write_new is fail_result_write
         assert runner.run is original_run
     assert 'sinh xong' in logs.getvalue()

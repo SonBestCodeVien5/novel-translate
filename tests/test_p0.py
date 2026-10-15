@@ -1,9 +1,13 @@
 import copy
 import errno
+import io
 import json
+import sys
 from pathlib import Path
 import tempfile
+import types
 import unittest
+from contextlib import redirect_stdout
 from unittest.mock import patch
 
 from app.bundles import DomainError, canonical_bytes, digest, load_json
@@ -134,6 +138,49 @@ class P0Tests(unittest.TestCase):
         with self.assertRaises(DomainError):
             run(self.plan, self.output, generate, 1)
         self.assertEqual(list((self.output / 'results').glob('*.json')) if (self.output / 'results').exists() else [], [])
+
+    def test_main_passes_configured_dtype_to_quantizer_and_model_loader(self):
+        original_config = copy.deepcopy(CONFIG)
+        corpus_path = Path(self.temp.name) / 'corpus.json'
+        corpus_path.write_text(json.dumps(corpus()), encoding='utf-8')
+        fp16, fp32 = object(), object()
+        torch = types.ModuleType('torch')
+        torch.float16, torch.float32 = fp16, fp32
+        torch.cuda = types.SimpleNamespace(is_available=lambda: True, reset_peak_memory_stats=lambda: None,
+            get_device_properties=lambda _index: types.SimpleNamespace(name='mock', total_memory=1),
+            synchronize=lambda: None, max_memory_allocated=lambda: 0, max_memory_reserved=lambda: 0)
+        torch.version = types.SimpleNamespace(cuda='mock')
+        torch.backends = types.SimpleNamespace(cudnn=types.SimpleNamespace(version=lambda: 1))
+        quant_args, model_args, plans = [], [], []
+        tokenizer = types.SimpleNamespace(chat_template='template', init_kwargs={'revision': 'pin', '_commit_hash': 'a' * 40},
+            encode=lambda text, add_special_tokens=False: [1] * len(text),
+            apply_chat_template=lambda messages, tokenize, add_generation_prompt: [1] * sum(len(m['content']) for m in messages))
+        model = types.SimpleNamespace(config=types.SimpleNamespace(max_position_embeddings=4096, _commit_hash='a' * 40),
+                                      generation_config=types.SimpleNamespace(eos_token_id=0), eval=lambda: None)
+        transformers = types.ModuleType('transformers')
+        transformers.AutoTokenizer = types.SimpleNamespace(from_pretrained=lambda *a, **kw: tokenizer)
+        transformers.AutoModelForCausalLM = types.SimpleNamespace(from_pretrained=lambda *a, **kw: model_args.append(kw) or model)
+        transformers.BitsAndBytesConfig = lambda **kw: quant_args.append(kw) or kw
+        transformers.set_seed = lambda _seed: None
+        try:
+            with patch.dict(sys.modules, {'torch': torch, 'transformers': transformers}), \
+                 patch('benchmarks.p0.runner.importlib.metadata.version', return_value='mock'), \
+                 patch('benchmarks.p0.runner.run', side_effect=lambda plan, *_a, **_kw: plans.append(copy.deepcopy(plan))), \
+                 redirect_stdout(io.StringIO()):
+                for name, dtype in (('float16', fp16), ('float32', fp32)):
+                    CONFIG.clear(); CONFIG.update(copy.deepcopy(original_config))
+                    CONFIG['quantization']['bnb_4bit_compute_dtype'] = name
+                    output = Path(self.temp.name) / name
+                    with patch.object(sys, 'argv', ['runner', '--model', MODELS[1], '--revision', 'a' * 40,
+                                                     '--corpus', str(corpus_path), '--output', str(output)]):
+                        from benchmarks.p0.runner import main as runner_main
+                        runner_main()
+                    self.assertIs(quant_args[-1]['bnb_4bit_compute_dtype'], dtype)
+                    self.assertIs(model_args[-1]['torch_dtype'], dtype)
+                    self.assertEqual(plans[-1]['config']['quantization']['bnb_4bit_compute_dtype'], name)
+            self.assertNotEqual(digest(plans[0]), digest(plans[1]))
+        finally:
+            CONFIG.clear(); CONFIG.update(original_config)
 
     def test_drive_unsupported_directory_fsync_verifies_readback(self):
         import os

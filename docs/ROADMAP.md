@@ -1,51 +1,60 @@
 # Roadmap theo cổng kiểm chứng
 
-Trạng thái: **P1 local fake đã kiểm thử; P2 có vertical slice v2 offline; P0
-Qwen3.5 đã qua smoke kỹ thuật trên T4 và full run đang resume qua CLI.** Chưa có
-benchmark P0 hoàn tất/go-no-go hoặc xác minh chất lượng. P2 export EPUB/runtime
-orchestration, P3–P4 chưa hoàn thành.
+Trạng thái: **P1 fake giữ riêng; app có offline batch/review flow v2 cho
+Qwen3.5 cùng notebook Colab fallback.** User đã chọn `Qwen/Qwen3.5-4B` làm
+provider tích hợp. Báo cáo/số đo benchmark chưa lưu trong repo; không suy ra
+25%, 18/18, đủ hai model hoặc zero critical errors. `criteria.json` còn stale;
+formal P0 quality phase chưa được đánh dấu hoàn tất. Full tokenizer/model/GPU v2,
+live Drive resume, Colab CLI orchestration, EPUB export, glossary, backup và P4
+chưa hoàn thành. Xem [INTEGRATION](INTEGRATION.md) và [REAL_BATCH](REAL_BATCH.md).
 Không gắn lịch giao hàng khi chưa có phép đo. Bằng chứng/giới hạn P1: [P1.md](P1.md).
 Kiến trúc, dữ liệu và hợp đồng batch: [PLAN.md](PLAN.md).
 Người dùng đã chốt EN → VI, 0 đồng, Colab miễn phí theo phiên, văn phong
 tiếng Việt tự nhiên giữ giọng nhân vật/tên riêng, tối đa 2 lần thử/model và
-tổng 4 phiên (14/10/2026). P1 dùng fake provider; P0 benchmark đang chạy, chưa
-có go/no-go.
+tổng 4 phiên (14/10/2026). User đã chọn Qwen3.5 làm provider tích hợp; formal
+P0 metrics/decision log chưa được cập nhật trong repo.
 
 ## Backlog và definition of done
 
 | ID | Công việc | Người thực hiện | Definition of done |
 | --- | --- | --- | --- |
-| P0-01 | Chốt mẫu, ngưỡng và ứng viên | Người dùng + dev | Có 5 chương, hai ứng viên và ngưỡng ghi trước khi chấm |
-| P0-02 | Chạy và chấm benchmark | Dev + người review tiếng Việt | Điền bảng PLAN, ghi lỗi/config, ra quyết định go/no-go |
+| P0-01 | Lưu decision log | Người dùng + dev | Ghi nhận lựa chọn Qwen3.5 cùng báo cáo/số đo đã chấm khi có |
+| P0-02 | Lưu báo cáo và decision log | Dev + người review tiếng Việt | Ghi số đo/lỗi/config đã chấm và cập nhật decision log theo xác nhận user |
 | P1-01 | TXT, schema, fake provider | Dev | Luồng TXT qua restart và export chạy được |
 | P1-02 | Bundle và bảo vệ revision | Dev | Test duplicate/partial/conflict/crash đạt |
-| P2-01 | Notebook và provider thật | Dev | Ngắt runtime rồi resume từ result bền vững thành công |
+| P2-01 | Provider v2 và notebook fallback | Dev | Qwen3.5 profile, manifest, UI review/import và notebook; runtime thật resume đạt |
 | P2-02 | EPUB import/export | Dev | Fixture spine/resource/XHTML đạt và mở đọc được |
-| P2-03 | Kiểm chứng Colab CLI trên WSL | Dev + người dùng | Auth, GPU/quota, truyền file, checkpoint ngoài VM và ngắt/resume được thử trên tài khoản thực; ghi bằng chứng hoặc lý do hoãn CLI và dùng notebook |
-| P2-04 | Script local điều phối Colab | Dev | Sau khi P2-03 đạt: batch → phiên Colab → runner → nhận/validate/import qua backend local → giải phóng phiên; chung hợp đồng/checkpoint với notebook, bảo toàn revision |
+| P2-03 | Kiểm chứng Colab runtime batch v2 | Dev + người dùng | Auth, GPU/quota, truyền file, checkpoint ngoài VM và ngắt/resume được thử trên tài khoản thực; ghi bằng chứng |
+| P2-04 | Colab CLI orchestration | Dev | Sau P2-03: batch → phiên → runner → nhận/validate/import → giải phóng; cùng contract/checkpoint notebook |
 | P3-01 | UI glossary/review | Dev + người dùng | Sửa, dịch lại và export không mất revision |
 | P3-02 | Backup, restore, accessibility | Dev | Restore thử thành công, form dùng được bằng bàn phím |
 | P3-03 | Nối flow dịch vào UI | Dev + người dùng | Nút Dịch/tiến độ/resume gọi script đã kiểm chứng; kết quả chuyển sang review, duyệt/export chính thức có chủ đích; có notebook fallback khi CLI bị hoãn |
 | P4-01 | Adapter một site | Dev | Crawl/import lặp đúng thứ tự, fixture và SSRF tests đạt |
 
-P1-01/P1-02 có bằng chứng trong P1.md. P2-01 có phần offline: bundle v2,
-tokenizer-based immutable manifest, per-result file runner, isolated SQLite
-tables/import CLI; synthetic tests cover idempotency, conflict, source staleness,
-crash recovery and preservation of v1 revisions. Chưa chạy tokenizer/model thật.
-P2-02 chỉ có EPUB import CLI theo yêu cầu ngày 14/10/2026 (xem EPUB_IMPORT.md),
-chưa đạt DoD export/reader. P2-03 Colab CLI trên WSL và P2-04 tự động điều phối
-chưa đạt DoD: runtime T4/CLI auth và P0 smoke đã kiểm chứng, nhưng chưa thử
-truyền batch v2, checkpoint ngoài VM hoặc ngắt/resume. Script `run_p0_colab.py`
-chỉ điều khiển benchmark notebook P0, không triển khai batch v2→backend local
-và chưa nối UI; P2-04 chưa hoàn tất. P0/provider-quality gate chưa đạt; không coi
-smoke kỹ thuật hoặc offline tests là bằng chứng chất lượng. Tiêu chí phase bên dưới là điều
-kiện bổ sung, không thay thế DoD của task.
+P1-01/P1-02 có bằng chứng trong P1.md. P2-01 offline app flow có bundle v2,
+Qwen3.5 profile, immutable tokenizer manifest, per-result runner, local
+import/review revisions, TXT draft/official theo job và notebook fallback.
+Snapshot v2 cũ còn hợp lệ; `enable_thinking=false` được đóng băng trong snapshot.
+Local end-to-end fixture đã chạy với tokenizer Qwen3.5 thật + generation giả:
+2 chapter/3 chunks, interrupt/resume, reverse import/duplicate, late manual edit,
+approval/official TXT và snapshot compatibility. Đây không phải inference/GPU/
+Drive proof; live interruption/resume còn mở.
+P2-02 có EPUB import CLI nhưng chưa có export/reader. P2-03 runtime batch v2
+qua Colab và checkpoint ngoài VM còn cần live verification; notebook là thao tác
+thủ công, không tự đồng bộ Drive hoặc import về app. P2-04 Colab CLI orchestration
+chưa hoàn tất. P0 user xác nhận đã chấm/chọn model; báo cáo/số đo chưa có trong
+repo, không suy ra các ngưỡng đã đạt. Tiêu chí phase bên dưới là điều kiện bổ
+sung, không thay DoD task.
 
 ## P0 — Kiểm chứng chất lượng và chi phí
 
+User đã xác nhận đã chấm và chọn Qwen3.5 làm provider tích hợp. Phần dưới mô tả
+tiêu chí và báo cáo cần lưu trong repo; chưa có số đo để ghi formal quality-gate
+completion hay kết quả từng ngưỡng.
+
 Phụ thuộc: chọn 5 chương đại diện, xác nhận ngôn ngữ, quyền dùng nguồn và ngân sách thử.
 
-- Chọn hai ứng viên model; có thể thử thêm một công cụ có sẵn nếu cài/chạy phù hợp.
+- So sánh hai ứng viên P0 ban đầu theo hồ sơ lịch sử; provider tích hợp đã được user chọn là Qwen3.5. Không mở lại lựa chọn model nếu không có yêu cầu mới.
 - Cùng nguồn và quy tắc chấm; ghi khác biệt prompt/template/tokenizer bắt buộc của mỗi model.
 - Ghi phiên bản, phần cứng, lượng tử hóa, token vào/ra, thời gian load, dịch và sửa tay.
 - Với chạy local/Colab, ghi thời gian GPU và chi phí thực nếu có; không quy đổi thành giá bịa.
@@ -78,24 +87,25 @@ Output: vertical slice có kiểm thử; chưa đánh giá chất lượng dịc
 
 ## P2 — EPUB và Colab runner với provider thật
 
-Phụ thuộc: P1 đạt exit; chọn provider qua P0 trước khi coi kết quả dịch là được chấp nhận.
+Phụ thuộc: P1 đạt exit; user đã chọn Qwen3.5 làm provider tích hợp. Kết quả dịch vẫn cần review; không suy ra chất lượng từ integration.
 
-- P2-01 offline slice có bundle v2, tokenizer planner, file runner và local
-  export/import/status CLI. Snapshot đóng băng hai model/revision, template,
-  prompt, budgets, source/token IDs và provenance; chỉ nhận result EOS đúng batch.
-  SQLite có ba bảng additive, tách chunk/result v2 khỏi fake jobs/revisions; xem
-  [schema](SQLITE_SCHEMA.md) và [hướng dẫn batch](REAL_BATCH.md).
-- Còn nối và kiểm chứng tokenizer/model thật, đo budget trên tokenizer thực, và
-  chạy end-to-end trên source fixture có quyền trước khi coi P2-01 acceptance đạt.
+- P2-01 đã có bundle v2, Qwen3.5 profile, tokenizer planner, file runner,
+  local import/review revisions, TXT draft/official theo job và notebook fallback.
+  SQLite có bốn bảng `real_*` additive; xem [schema](SQLITE_SCHEMA.md) và
+  [hướng dẫn batch](REAL_BATCH.md).
+- Local fixture đã chạy với tokenizer Qwen3.5 thật + generation giả: manifest,
+  interruption/resume, reverse import/duplicate, late edit, approval/official TXT;
+  snapshot cũ byte-identical. Chưa có inference/GPU/Drive proof.
   Không chia lại chunk/job cũ hoặc làm mất revision.
-- Notebook đọc manifest từ Drive, chạy tuần tự, ghi bền vững từng result hoàn tất ngoài VM và báo lỗi rõ; giữ làm fallback.
-- P2-03 kiểm chứng CLI trên WSL/tài khoản thực: auth tương tác, quyền truy cập, GPU/quota, truyền file v2, lưu result ngoài VM và ngắt/resume. Auth/runtime T4/P0 smoke đã thử; phần batch v2 còn cần kiểm chứng. Nếu không đạt thì ghi lý do hoãn và tiếp tục notebook.
+- Notebook Colab fallback bootstrap v2 code, đọc manifest từ Drive, chạy tuần tự
+  và ghi từng EOS result; người dùng tự truyền file giữa Drive và app.
+- P2-03 kiểm chứng live Colab batch v2: auth, GPU/quota, truyền file, checkpoint ngoài VM và ngắt/resume.
 - P2-04 phụ thuộc P2-03 đạt: script local theo yêu cầu xuất batch, tạo phiên, chạy runner, nhận/validate/import qua backend local và giải phóng phiên. Dùng chung batch, validator/checkpoint với notebook; không thêm service luôn bật.
 - Không chờ cuối job mới tải kết quả; file partial/conflict không được nhập đè sửa tay. Auth/permission cần người dùng khi được yêu cầu, secret không nằm trong bundle/log.
 - Retry theo giới hạn PLAN; không tự cấp lại GPU vô hạn hoặc vượt trần thử/ngân sách. MVP ưu tiên người dùng bấm resume sau mất phiên.
 - Resume quét result hợp lệ; runtime mất thì load lại model, dịch lại chunk đang dở.
 - Không mở SQLite trên Drive; không polling vô hạn hoặc giả định Colab còn sống.
-- Thêm EPUB import/export theo spine và mapping XHTML; giữ resource/link/metadata.
+- EPUB import CLI đã có; còn EPUB export/reader theo spine và mapping XHTML, giữ resource/link/metadata.
 - Test ngắt runner CLI/notebook, tải result thiếu bytes, lệch model/glossary và nhận kết quả không theo thứ tự.
 - Test EPUB có spine khác thứ tự tên file, ảnh, link, heading và ký tự cần escape.
 - Kiểm tra bản EPUB xuất bằng parser/validator phù hợp và mở đọc thử trong ít nhất một reader.
@@ -108,7 +118,7 @@ Output: hướng dẫn vận hành Colab và phục hồi, bằng chứng CLI đ
 
 Phụ thuộc: P2; giữ các trang đã có, không viết lại frontend.
 
-- P3-03 nối script P2-04 đã kiểm chứng vào nút Dịch, tiến độ và resume; khi nhận đủ result thì chuyển sang review. Nếu CLI hoãn, giữ flow notebook; review/duyệt/export chính thức vẫn có chủ đích.
+- P3-03 UI review v2 đã có; nối điều phối P2-04 khi được kiểm chứng còn lại. Notebook fallback vẫn thao tác thủ công.
 - So sánh nguồn/đích, sửa heading, chỉnh bản dịch và xem revision hiện hành.
 - Thêm canonical term/alias, ghi chú nhân vật/xưng hô và snapshot glossary.
 - Glossary đề xuất từ model phải qua review; bắt đầu context nguồn có giới hạn/snapshot. Rolling summary chỉ mở khi có nhu cầu và chốt dependency hashes, budget/chi phí; không tự sửa glossary/job đang chạy.

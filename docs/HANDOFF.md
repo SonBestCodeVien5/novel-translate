@@ -2,6 +2,72 @@
 
 Đọc sau WORKFLOW; trạng thái mới nhất ở mục đầu, các mục sau là lịch sử.
 
+## Offline pipeline Qwen3.5 và review v2 — 15/10/2026
+
+- User yêu cầu triển khai pipeline và commit. Hai worker triển khai provider/
+  notebook và UI; main tích hợp/kiểm chứng. Main đã commit provider/notebook
+  `6aff1eb` và UI/review/export `fed9f42`; phần docs đang được cập nhật riêng.
+  Provider đã chốt Qwen3.5. Code hiện có v2 bundle/runner, local
+  Store/UI review, `real_revisions`, TXT draft/official theo job và notebook
+  Colab fallback. P1 fake giữ riêng.
+- Qwen3.5 pin `851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a`; Transformers 5.3.0,
+  accelerate 1.11.0, bitsandbytes 0.48.2 ở notebook. Local extra `tokenizer`
+  chỉ cài Transformers 5.3; không tải weights. Main tải/load tokenizer pinned thật
+  thành công và kiểm input ID/kwargs trên fixture. `enable_thinking=false` nằm trong
+  snapshot/hash và dùng chung planner/runner. Snapshot v2 cũ tiếp tục validate.
+- UI: POST tạo real job/tokenizer local; GET trang review theo job; manifest
+  download; upload result từng JSON, giới hạn 1 MiB; save/approve theo revision
+  và base result hash; export draft hoặc official chỉ khi toàn bộ chunk của job
+  có revision hiện hành được duyệt. Tiến độ là số result import local, không phải
+  runtime liveness. Notebook bootstrap app v2, mount Drive và chạy/resume file;
+  Colab CLI orchestration chưa có.
+- Main xác nhận tokenizer Qwen3.5 tải 6 files và load thành công; uv pip check
+  đạt. Local fixture end-to-end với tokenizer thật + generation giả đạt: tạo
+  2-chapter/3-chunk manifest, interrupt/resume, import đảo thứ tự + duplicate,
+  giữ manual edit đến muộn, approve và official TXT; snapshot cũ byte-identical.
+  GPU/model v2 và Drive interruption/resume chưa chạy. Main chạy full suite ngoài
+  sandbox bằng `timeout 60s .venv/bin/python -m pytest -q`: 97 passed, 23
+  subtests, 1 warning Starlette/httpx deprecation (12.15s). Schema khai báo tổng cộng 10 bảng (6 v1 + 4 bảng real mới),
+  chưa kiểm tra DB người dùng/migration thực.
+- Chưa làm: EPUB export/reader, glossary snapshot/editor, backup/restore, P2-03
+  live Colab verify, P2-04 CLI orchestration và quality metrics report. Xem
+  [REAL_BATCH](REAL_BATCH.md), [INTEGRATION](INTEGRATION.md), [schema](SQLITE_SCHEMA.md).
+
+## User xác nhận kết quả chấm và chọn provider — 15/10/2026
+
+- User xác nhận đã chấm và chọn `Qwen/Qwen3.5-4B` làm provider tích hợp; chọn
+  chính xác Qwen3.5, model mới thêm gần nhất. Không cần hỏi/chờ chọn model nữa.
+- Chưa có báo cáo/số đo được lưu trong repo. Không tự điền mức tiết kiệm 25%,
+  18/18 chunks, đủ hai model hoặc zero critical errors; không tuyên bố formal
+  phase P0 quality complete. `benchmarks/p0/criteria.json` còn `not_run` và
+  `decision: null`, là artifact chưa cập nhật theo thông tin user.
+- Mốc profile P0 trong [P0_MODELS](P0_MODELS.md): revision
+  `851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a`, Transformers 5.3.0,
+  accelerate 1.11.0, bitsandbytes 0.48.2, NF4 double quant fp16, SDPA, batch 1,
+  budgets 768/2048/2048/4096, greedy seed 0, `enable_thinking=False`. Đây là
+  cấu hình repo dùng làm mốc tích hợp, không phải số đo user vừa cung cấp.
+- Đây là ảnh chụp trước khi hoàn tất UI/provider phía dưới; phần này hiện là
+  lịch sử. Trạng thái mới nhất là mục “Offline pipeline Qwen3.5 và review v2”.
+
+## Chuẩn bị tích hợp app/model P2/P3 — 15/10/2026
+
+- Theo yêu cầu user, mở phạm vi chuẩn bị kỹ thuật và đánh giá readiness; chỉ cập
+  nhật docs, không sửa app/runtime, không chạy GPU/model v2. Hợp đồng/thứ tự và
+  task packets ở [INTEGRATION.md](INTEGRATION.md); roadmap chưa tick phase.
+- Nền tảng v2 offline có thật; lúc ghi mục này profile/runtime/UI còn thiếu; xem
+  mục mới nhất đầu file để biết phần đã triển khai sau đó. EPUB export vẫn thiếu. `criteria.json` còn `decision: null`
+  do chưa cập nhật theo lựa chọn user; không phủ định xác nhận đã chấm/chọn.
+- Kế hoạch bước đầu là profile v2 pinned Transformers 5.3/SDPA, mapping
+  BatchEncoding, nested config/provenance, context/missing-key checks và
+  `enable_thinking=false` được snapshot/hash; đã triển khai theo mục mới nhất.
+- Main chạy trước baseline offline: 56 passed, 23 subtests passed (6 test files
+  real bundles/runner/store, core, EPUB, Colab pipeline; 8.83s). Đây là kết quả
+  của main, không phải kiểm thử runtime/model/Drive. Worker chỉ chạy
+  `git diff --check` và rà link/claim tài liệu.
+- Chưa chạy GPU/model v2, chưa kiểm tra Drive durability/checkpoint ngoài VM,
+  chưa triển khai hay kiểm thử UI/revision v2; chưa lưu báo cáo/số đo P0 trong
+  repo để xác nhận formal phase quality complete.
+
 ## Đồng bộ docs và dọn notebook — 15/10/2026
 
 - Theo yêu cầu user, đồng bộ trạng thái P0, CLI và notebook Run all trong
@@ -145,12 +211,15 @@
 
 ## P2 offline: batch thật v2 và Store local — 15/10/2026
 
+Mục này là trạng thái tại thời điểm ghi; phần “ba bảng/chưa có UI” bên dưới đã
+được cập nhật bởi mục “Offline pipeline Qwen3.5 và review v2” đầu file.
+
 - Có `app/real_bundles.py` v2 với planner tokenizer, manifest snapshot bất biến,
   provenance pinned model/tokenizer và result chỉ nhận status completed/EOS;
   `app/real_runner.py` chạy file-only, lưu một result JSON mỗi chunk, resume từ
   checkpoint đã validate. Đây là mã kiểm thử offline, không phải bằng chứng model
   đã chạy.
-- `Store` có ba bảng additive `real_jobs`, `real_chunks`, `real_results`, thư mục
+- Tại thời điểm mục lịch sử này, `Store` có ba bảng additive `real_jobs`, `real_chunks`, `real_results`, thư mục
   `real-batches/` và `real-results/`; v1 fake tables, UI/latest fake job và manual
   revisions được giữ riêng. Import kiểm source/chapter hiện tại, checksum,
   provenance, duplicate/conflict, và có file-first recovery sau transaction crash.
@@ -313,19 +382,22 @@ Thông báo chặn upload dưới đây là lịch sử. Chưa inference/GPU th�
 Các mục thiếu ch03–ch05 và default smoke dưới đây là lịch sử đã được cập nhật
 bởi mục này; chưa có kết quả benchmark hoặc go/no-go.
 
-Chỉ tiếp tục **P0**, không mở P1/P2 hoặc crawler P4. P1 local fake đã có bằng
-chứng trong P1.md; chưa chạy model thật, chưa có benchmark hay go/no-go.
+Đây là quyết định/giới hạn lịch sử trước yêu cầu mở P2 và xác nhận provider ngày
+15/10/2026; xem các mục mới nhất đầu file. P1 local fake có bằng chứng trong
+P1.md; benchmark full/quality gate vẫn cần phân biệt với xác nhận user.
 
 ## Đã chốt và còn mở
 
 - EN → VI, ngân sách 0 đồng, Colab free theo phiên tương tác; người dùng tự review.
-- Hai ứng viên: Qwen3-4B-Instruct-2507 và Qwen2.5-7B-Instruct; revision,
-  package pins và cấu hình ở [P0_MODELS.md](P0_MODELS.md), không tự đổi snapshot.
+- Các ứng viên P0 ban đầu là Qwen3-4B-Instruct-2507 và Qwen2.5-7B-Instruct;
+  user hiện đã chọn Qwen3.5 cho tích hợp. Revision/pins lịch sử ở
+  [P0_MODELS.md](P0_MODELS.md); không đổi cấu hình đã pin âm thầm.
 - Benchmark chính thức: 5 chương × 2 model, không bỏ đoạn, mọi chunk hoàn tất,
   zero critical sau review, tổng thời gian sinh + sửa giảm ≥25% so baseline.
 - Người dùng chốt ngày 14/10/2026: tiếng Việt tự nhiên, giữ giọng nhân vật và
   tên riêng; tối đa 2 lần thử/model, tổng 4 phiên Colab miễn phí. Đã ghi
-  [criteria.json](../benchmarks/p0/criteria.json); benchmark vẫn chưa chạy.
+  [criteria.json](../benchmarks/p0/criteria.json); lịch sử chuẩn bị benchmark
+  bên dưới không phản ánh xác nhận chấm/chọn mới nhất ngày 15/10/2026.
 - Baseline dịch tay cùng toàn bộ chương phải xong trước khi xem output model,
   kể cả hai chương smoke sẽ dùng lại; smoke không chứng minh chất lượng/go-no-go.
 

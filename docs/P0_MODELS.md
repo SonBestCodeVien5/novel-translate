@@ -1,5 +1,25 @@
 # Các ứng viên P0 EN → VI
 
+## Quyết định provider tích hợp — 15/10/2026
+
+User xác nhận đã chấm và chọn `Qwen/Qwen3.5-4B` làm provider tích hợp; đây là
+model mới được thêm gần nhất. Chưa có báo cáo/số đo benchmark trong repo để ghi
+nhận 25% time saving, 18/18 chunks, đủ hai model hoặc zero critical errors.
+Không suy ra formal P0 phase/quality gate đã hoàn tất. `criteria.json` hiện còn
+`measurements_status=not_run` và `decision=null`, chưa được cập nhật theo thông
+tin user.
+
+Mốc cấu hình repo cho tích hợp: revision
+`851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a`, `transformers==5.3.0`,
+`accelerate==1.11.0`, `bitsandbytes==0.48.2`, NF4 double quant với compute fp16,
+SDPA, batch 1, budget source/input/output/context 768/2048/2048/4096, greedy,
+seed 0, `enable_thinking=False`. Đây là profile P0 đã có smoke để làm mốc kỹ
+thuật; không đại diện số đo hay cấu hình do user vừa cung cấp. Không tự thay
+model/config trong quá trình tích hợp.
+
+Các ghi chú về benchmark preparation/smoke bên dưới là lịch sử theo thời điểm;
+quyết định mới nhất là lựa chọn provider ở trên.
+
 ## Bổ sung Qwen3.5-4B — 15/10/2026
 
 Cập nhật kiểm chứng: đã chạy thật một chunk trên T4 qua CLI, `technical_complete`,

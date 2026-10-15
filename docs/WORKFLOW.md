@@ -6,9 +6,11 @@ Bắt đầu từ [AGENTS.md](../AGENTS.md), workflow này rồi [HANDOFF.md](HA
 HANDOFF ghi trạng thái vận hành mới nhất; PLAN/ROADMAP vẫn quyết định hợp đồng
 và phạm vi. Chỉ đọc phần liên quan khi đổi phạm vi, không nạp toàn bộ docs mỗi
 nhiệm vụ. Dùng vài lần đọc có mục tiêu và `rg` giới hạn vào luồng cần sửa.
-Hiện tập trung P0; P1 fake có bằng chứng lịch sử ở [P1.md](P1.md). Qwen3.5 đã
-qua smoke model thật và lượt full đang resume; chưa có benchmark hoàn tất hay
-kết luận chất lượng. Khi làm pipeline/glossary/resume, đọc
+Trạng thái hiện hành ở HANDOFF: user chọn Qwen3.5 làm provider tích hợp; app có
+offline batch/review v2 và notebook fallback. Fixture local đã kiểm end-to-end
+bằng tokenizer thật/generation giả; GPU/model v2 và Drive resume chưa xác minh.
+P0 metrics report chưa lưu trong repo.
+P1 fake có bằng chứng lịch sử ở [P1.md](P1.md). Khi làm pipeline/glossary/resume, đọc
 [skill staging](../codex-setup/skills/novel-translation/SKILL.md).
 
 ## Phong cách làm việc

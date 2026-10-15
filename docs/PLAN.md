@@ -1,16 +1,26 @@
 # Kế hoạch triển khai app dịch novel
 
-Trạng thái: đã triển khai và kiểm thử luồng P1 với provider giả; P0 chưa benchmark.
-Người dùng mở riêng EPUB import CLI ngày 14/10/2026; đã triển khai parser/Store,
-chưa mở EPUB export/provider thật hoặc tự động điều phối Colab. Xem [EPUB_IMPORT](EPUB_IMPORT.md).
+Trạng thái: P1 provider giả đã triển khai/kiểm thử; user xác nhận đã chấm và
+chọn `Qwen/Qwen3.5-4B` làm provider tích hợp ngày 15/10/2026. Báo cáo/số đo
+chấm chưa được lưu trong repo; không tự suy ra 25%, 18/18, đủ hai model hay
+zero critical errors. `criteria.json` còn stale (`not_run`/`decision=null`) và
+chưa được cập nhật theo xác nhận user; chưa kết luận formal P0 quality phase.
+P2 Qwen3.5 v2 có offline app flow/UI review cùng notebook Colab fallback. Local
+verification đã chạy planner thật với tokenizer Qwen3.5 pinned và generation giả
+end-to-end; chưa có GPU/model inference hoặc Drive interruption/resume thật.
+Colab CLI orchestration chưa chạy.
+EPUB import CLI có sẵn; EPUB export/glossary/backup chưa có. Xem
+[INTEGRATION](INTEGRATION.md) và [REAL_BATCH](REAL_BATCH.md).
 Lộ trình và cổng quyết định: [ROADMAP.md](ROADMAP.md).
-Bước dịch thật tiếp theo cần qua P0; bằng chứng P1 nằm trong [P1.md](P1.md).
+Bằng chứng và readiness P2/P3 nằm trong [INTEGRATION.md](INTEGRATION.md);
+không dùng integration/offline code thay quality evidence P0. Bằng chứng P1 nằm
+trong [P1.md](P1.md).
 
 ## 1. Mục tiêu và phạm vi
 
 - App một người dùng: nhập sách, dịch theo chương, sửa bản dịch, xuất sách.
 - Máy Dell Vostro giữ dữ liệu và giao diện; Colab cung cấp GPU theo phiên tương tác.
-- EN → VI, ngân sách 0 đồng, chạy Colab miễn phí theo phiên đã được người dùng xác nhận ngày 14/10/2026; chưa khóa model.
+- EN → VI, ngân sách 0 đồng, chạy Colab miễn phí theo phiên đã được người dùng xác nhận ngày 14/10/2026; user chọn `Qwen/Qwen3.5-4B` làm provider tích hợp ngày 15/10/2026.
 - MVP hỗ trợ TXT trước, EPUB sau; crawler một website nằm ở P4, không bị bỏ khỏi mục tiêu.
 - Giữ nguyên bản gốc, thứ tự chương, bản dịch máy và lịch sử sửa tay.
 - Không có React, Celery, Redis, RAG, Docker, nhiều người dùng hay dịch vụ Colab luôn bật trong MVP.
@@ -21,14 +31,14 @@ Bước dịch thật tiếp theo cần qua P0; bằng chứng P1 nằm trong [P
 | Quyết định | Thông tin cần có | Checkpoint |
 | --- | --- | --- |
 | Tiêu chí văn phong | Đã chốt: tiếng Việt tự nhiên, giữ giọng nhân vật và tên riêng | P0 |
-| Model và cách chạy | Hai ứng viên, quyền truy cập, giấy phép, VRAM | P0 |
+| Model và cách chạy | User chọn Qwen/Qwen3.5-4B; quyền truy cập/runtime và profile v2 cần triển khai/kiểm tra | P2/P0 |
 | Ngân sách | Đã chốt 0 đồng, Colab miễn phí theo phiên, tổng 4 phiên; tối đa 2 lần thử/model | P0 |
 | Máy local | Đã xác nhận WSL; cần RAM, dung lượng, distro và Python khả dụng | P0/P1 |
 | Website crawl đầu tiên | URL, quyền truy cập, cấu trúc chương | Trước P4 |
 | Chất lượng chấp nhận được | Đã chốt: không bỏ đoạn, mọi chunk hoàn tất, 0 lỗi sai ý trọng yếu sau review, saving tổng ≥25% | P0 |
 
-Thiếu các thông tin này không cản viết tài liệu hoặc làm fake provider ở P1.
-Không chọn model sản xuất hoặc hứa thời gian hoàn tất khi chưa qua P0.
+Thiếu các thông tin runtime/profile v2 không cản chuẩn bị tích hợp. Model tích hợp
+đã được user chọn; formal P0 benchmark metrics/go-no-go vẫn chưa có trong repo.
 
 ## 3. Kiến trúc nhỏ nhất
 
@@ -48,11 +58,11 @@ Trình duyệt → FastAPI + Jinja2 → SQLite và thư mục sách local
 - Backend local là chủ sở hữu duy nhất của SQLite; runner Colab không mở DB.
 - SQLite đặt trên ổ local; Drive chỉ trao đổi file, không chứa DB dùng chung.
 - Batch là ảnh chụp đầu vào; sửa glossary/prompt tạo batch mới, không sửa batch cũ.
-- P2 kiểm chứng Colab CLI trên WSL trước khi làm script local điều phối theo yêu cầu; notebook là fallback.
-- Script tạo phiên, truyền batch, chạy runner, nhận/validate/import result qua backend local rồi giải phóng phiên; dùng chung batch, validator và checkpoint với notebook.
+- App có notebook Qwen3.5 v2 làm fallback file workflow; P2-03 kiểm chứng live Colab batch và checkpoint ngoài VM còn mở. P2-04 CLI orchestration chỉ sau P2-03.
+- Colab CLI orchestration là việc P2-04 tương lai; hiện UI tải notebook fallback và người dùng tự truyền file, không tự tạo phiên/import.
 - Kết quả mỗi chunk phải được lưu bền vững ngoài VM (Drive hoặc local) trước khi coi là checkpoint; không chờ cuối job mới tải.
 - Auth/permission cần người dùng khi CLI hoặc Drive yêu cầu; không đưa credential/token vào bundle hay log.
-- CLI là phương án tạm, chưa kiểm chứng trên WSL/tài khoản thực; nếu không đạt P2-03, ghi lý do hoãn và dùng notebook do người dùng mở/chạy. Colab không là dịch vụ luôn bật.
+- CLI Colab đã được cài/auth và dùng với runtime T4 cho P0; điều đó chưa kiểm chứng truyền batch v2, checkpoint ngoài VM hoặc ngắt/resume P2-03. Nếu P2-03 không đạt, ghi lý do hoãn và dùng notebook do người dùng mở/chạy. Colab không là dịch vụ luôn bật.
 - Khi runtime mất: load model lại, bỏ qua result đã xác thực và lưu bền vững; dịch lại chunk dở.
 - Local ghi DB trong transaction ngắn; không giữ transaction khi chạy model hoặc chờ Drive.
 - Tác vụ local dài có trạng thái lưu DB và được tiếp tục qua thao tác rõ ràng trong UI.
@@ -81,7 +91,8 @@ Provider đầu tiên có cùng hợp đồng đầu vào/đầu ra với fake p
 
 ## 5. Dữ liệu tối thiểu và quyền sở hữu
 
-Schema SQLite đã triển khai (6 bảng) và đề xuất triển khai sau nằm ở
+Schema SQLite code khai báo 6 bảng v1 và 4 bảng real v2; trạng thái schema
+đích và giới hạn migration nằm ở
 [SQLITE_SCHEMA.md](SQLITE_SCHEMA.md); bảng dưới đây là hợp đồng mục tiêu,
 không phải danh sách cột hiện có.
 
@@ -140,7 +151,7 @@ Schema có `schema_version`; validator từ chối version/field lạ, kiểu sa
 
 - Quy định một cách canonical hóa JSON cho hash; không hash phụ thuộc thứ tự key tùy ý.
 - Bundle tự chứa đủ prompt, glossary và context để runner CLI/notebook thực thi; hash/revision chỉ để kiểm chứng, không thay dữ liệu đầu vào.
-- P2 phải thống nhất bundle app/Colab trước: P0 plan/results/sessions JSON chưa nhập được vào SQLite; validator/provenance app hiện chỉ nhận fake. Không nối bằng cách đổi tên field; chốt version, real-provider provenance và test stale/error/sửa tay.
+- P2 offline bundle app/Colab v2 hỗ trợ Qwen3.5 và các snapshot Qwen v2 cũ; `chat_template_kwargs.enable_thinking=false` được snapshot/hash và dùng cùng planner/runner. P0 plan/results/sessions vẫn khác schema, không import sang v2. SQLite khai báo 6 bảng v1 + 4 bảng `real_*`; xem [schema](SQLITE_SCHEMA.md). Readiness ở [INTEGRATION](INTEGRATION.md).
 - Chốt trước P1: JSON key tăng dần, separator gọn, UTF-8 không BOM, không NaN; hash SHA-256 lowercase hex.
 - ID là chuỗi UUID, ordinal là số nguyên từ 0, timestamp UTC RFC3339; text giữ nguyên Unicode, không tự normalize lúc hash.
 - Result checksum tính trên object bỏ trường checksum; manifest hash tính trên toàn manifest canonical, không tự chứa hash của chính nó.
@@ -204,7 +215,7 @@ Mẫu benchmark: một dòng mỗi chương/ứng viên, thêm 10 dòng trước
 - P1 kiểm thử fake provider từ TXT tới export sau restart; duplicate import không nhân dữ liệu.
 - Fault tests: crash giữa import, file thiếu bytes/checksum sai, result tới chậm/trùng/xung đột.
 - Thử sửa glossary và sửa tay trong khi job cũ đang chạy; không mất sửa tay, stale được nhận diện.
-- P2-03 kiểm chứng CLI trên WSL/tài khoản thực: auth, GPU/quota, truyền file, checkpoint ngoài VM và ngắt/resume.
+- P2-03 kiểm chứng batch v2 trên WSL/tài khoản thực: auth, GPU/quota, truyền file, checkpoint ngoài VM và ngắt/resume. Local fixture đã chạy bằng tokenizer thật + generation giả; GPU/model và Drive resume chưa kiểm chứng.
 - P2-04 chỉ làm script điều phối sau khi CLI đạt; thử ngắt runner CLI/notebook, load lại model và resume chỉ từ result lưu bền vững.
 - P3 nối script đã kiểm chứng vào nút Dịch, tiến độ và resume; nhận đủ result thì chuyển sang review, duyệt/export chính thức vẫn do người dùng chủ động.
 - EPUB fixture có spine khác tên file, ảnh, link, ký tự đặc biệt; xuất phải giữ cấu trúc hợp lệ.
@@ -214,7 +225,7 @@ Mẫu benchmark: một dòng mỗi chương/ứng viên, thêm 10 dòng trước
 
 ## 11. Cơ sở tham khảo và giới hạn bằng chứng
 
-- [Colab CLI](https://github.com/googlecolab/google-colab-cli): phương án điều phối tạm cho P2-03/P2-04, chưa chạy hoặc xác minh trên WSL/tài khoản thực.
+- [Colab CLI](https://github.com/googlecolab/google-colab-cli): đã auth và dùng với runtime T4 cho P0; chưa kiểm chứng batch v2, checkpoint ngoài VM hoặc ngắt/resume theo P2-03.
 - [Colab FAQ](https://research.google.com/colaboratory/faq.html): giới hạn runtime/tài nguyên không phải cam kết always-on.
 - [SQLite qua mạng](https://sqlite.org/useovernet.html): cơ sở để DB ở local, không mở chung qua Drive.
 - [Colab VS Code](https://github.com/googlecolab/colab-vscode): tùy chọn tương tác, không biến Colab thành worker bền vững.

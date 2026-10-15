@@ -3,9 +3,12 @@
 Đọc `docs/WORKFLOW.md`, rồi `docs/HANDOFF.md` trước khi làm việc; chỉ đọc
 phần liên quan của `docs/PLAN.md` và `docs/ROADMAP.md` khi quyết định phạm vi. Khi cần bối cảnh tổng thể, xem `docs/PROJECT_KNOWLEDGE.md`;
 đây là tài liệu tham khảo, không thay PLAN/ROADMAP hoặc quy tắc làm việc.
-Repo đã có ứng dụng local P1 dùng provider giả; xem `docs/P1.md` cho bằng chứng
-và giới hạn. P0 Qwen3.5 đã có checkpoint model thật và đang chạy qua CLI;
-chưa hoàn tất benchmark hay chấm chất lượng. Xem HANDOFF cho trạng thái mới nhất.
+Repo có luồng local P1 fake riêng và offline batch/review v2 cho provider
+`Qwen/Qwen3.5-4B`; xem `docs/REAL_BATCH.md` và `docs/INTEGRATION.md`. User đã
+chọn Qwen3.5 làm provider tích hợp; local fixture đã kiểm end-to-end với
+tokenizer thật/generation giả. GPU/model v2 và Colab live resume chưa được kiểm
+chứng. Báo cáo P0 metrics chưa lưu trong repo;
+xem HANDOFF cho trạng thái mới nhất.
 Khi triển khai hoặc kiểm tra pipeline dịch, glossary, checkpoint hay import/export,
 đọc rõ `codex-setup/skills/novel-translation/SKILL.md`; đây là bản staging,
 chưa được Codex tự khám phá như skill đã cài.

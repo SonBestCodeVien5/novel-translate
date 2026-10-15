@@ -1,9 +1,9 @@
 # SQLite P1 và schema batch thật v2
 
-Sáu bảng P1 được đối chiếu ngày 14/10/2026; phần v2 phản ánh code ngày
-15/10/2026 trong [app/core.py](../app/core.py), [bundle P1](../app/bundles.py),
-[bundle v2](../app/real_bundles.py) và [runner P0](../benchmarks/p0/runner.py).
-P1 giữ sáu bảng fake hiện có; code thêm ba bảng additive cho job/model thật.
+Sáu bảng v1 giữ luồng fake; bốn bảng `real_*` additive hiện có job/result/review
+v2. Định nghĩa code hiện tại ở [app/core.py](../app/core.py),
+[bundle P1](../app/bundles.py), [bundle v2](../app/real_bundles.py) và
+[runner v2](../app/real_runner.py).
 Schema đích tổng thể vẫn khác mô hình mục
 tiêu trong [PLAN §5](PLAN.md#5-dữ-liệu-tối-thiểu-và-quyền-sở-hữu).
 
@@ -42,32 +42,36 @@ không có cột locator/hash riêng ở `chapters`. Xem [EPUB_IMPORT.md](EPUB_I
 Sáu bảng P1 không có bảng glossary, model/session, tác giả hoặc cột trạng thái
 riêng cho chunk; job thật v2 được mô tả bên dưới.
 
-DB local đã đối chiếu có 1 sách, 390 source units/chapter rows, 3.929 chunks
+DB local lần được đối chiếu ngày 14/10/2026 có 1 sách, 390 source units/chapter rows, 3.929 chunks
 `chars-1`; jobs/results/revisions đều 0. Đây là số đếm thật sau EPUB import,
 không phải số chương truyện đã phân loại hay dự báo token chunk. Mỗi XHTML
 nonempty spine là source unit, có thể gồm bìa/giới thiệu.
 
-## Ba bảng batch thật v2
+## Bốn bảng batch thật v2 (10 bảng khai báo tổng cộng)
 
-`Store.__init__` khai báo `CREATE TABLE IF NOT EXISTS` cho các bảng dưới đây trong
-cùng schema khởi tạo với bảng P1. Mở Store trên DB cũ sẽ thêm bảng nếu thiếu;
-không đổi sáu bảng P1, dữ liệu source hoặc revisions. **Database người dùng chỉ
-được kiểm tra bằng kết nối `mode=ro`, chưa migrate hoặc ghi trong lượt này**;
-đối chiếu cuối lượt vẫn có sáu bảng P1 và số hàng như trên, chưa có bảng v2.
+`Store.__init__` khai báo `CREATE TABLE IF NOT EXISTS` cho các bảng bên dưới.
+Khi Store được mở, bảng nào thiếu sẽ được tạo; không sửa sáu bảng v1 hoặc các
+revision v1. `real_revisions` lưu review v2 riêng theo job/chunk. Không có
+migration chuyển dữ liệu/revision v1 sang v2. Database người dùng không được
+kiểm tra/ghi trong lượt tài liệu này; số hàng lịch sử phía trên chỉ phản ánh
+lần đối chiếu ngày 14/10/2026.
 
 | Bảng | Cột và kiểu SQLite | Khóa/ràng buộc |
 | --- | --- | --- |
 | `real_jobs` | `sequence INTEGER`, `id TEXT`, `book_id TEXT`, `manifest TEXT`, `manifest_hash TEXT`, `status TEXT` | PK `sequence` AUTOINCREMENT; UNIQUE `id`; FK `book_id → books.id` |
 | `real_chunks` | `job_id TEXT`, `chunk_id TEXT`, `chapter_id TEXT`, `chapter_ordinal INTEGER`, `ordinal INTEGER`, `payload TEXT` | PK `(job_id, chunk_id)`; UNIQUE `(job_id, chapter_ordinal, ordinal)`; FK `job_id → real_jobs.id`, `chapter_id → chapters.id` |
 | `real_results` | `job_id TEXT`, `chunk_id TEXT`, `checksum TEXT`, `payload TEXT` | PK `(job_id, chunk_id)`; composite FK `(job_id, chunk_id) → real_chunks(job_id, chunk_id)` |
+| `real_revisions` | `job_id TEXT`, `chunk_id TEXT`, `revision INTEGER`, `edited_text TEXT`, `base_result_hash TEXT` nullable, `approved INTEGER`, `created_at TEXT` | PK `(job_id, chunk_id, revision)`; composite FK `(job_id, chunk_id) → real_chunks(job_id, chunk_id)` |
 
 Chunk ID v2 do planner sinh riêng theo tokenizer; không trỏ sang bảng `chunks`
 P1 và không reanchor revision. Payload chunk giữ manifest entry, gồm source
 text/offsets, input IDs và input token count. Manifest v2 và result JSON dùng
 `data/real-batches/` và `data/real-results/`; mỗi result được lưu file trước rồi
 commit trong transaction để có thể nhập lại sau crash. `real_results` không thay
-`results`, và P1 `get_book`, latest fake job, UI review hay TXT export chưa đọc
-bảng v2. Import v2 không cập nhật `revisions`.
+`results`; `real_revisions` không thay `revisions`. Review/export v2 chọn rõ job
+và giữ revisions theo segmentation tokenizer. Official TXT yêu cầu mọi chunk có
+revision hiện hành được duyệt với base result hash khớp. Draft đánh dấu
+missing/unreviewed. Import result không tự approve hoặc đổi revision.
 
 Code khởi tạo là migration additive/idempotent qua `CREATE TABLE IF NOT EXISTS`,
 không phải migration dữ liệu đã chạy trên DB người dùng. Kiểm tra offline bằng
@@ -84,11 +88,13 @@ Ví dụ dung lượng/số chunk trong response chỉ là giả định, không
 
 Thứ tự triển khai sau, qua các cổng [ROADMAP](ROADMAP.md):
 
-1. **P2 offline đã có:** bundle v2, planner tokenizer thật, runner file-only và
+1. **P2 offline đã có:** bundle v2, tokenizer planner, runner file-only và
    Store local dùng chung manifest/result validator; Store kiểm current source,
    import từng result idempotently và giữ v1 revisions tách biệt. Chỉ có test
-   tokenizer/generation giả; chưa nạp tokenizer/model thật, chưa có benchmark,
-   GPU/Colab/Drive run hay bằng chứng chất lượng.
+   integration fixture dùng tokenizer Qwen3.5 thật và generation giả đã chạy:
+   2 chapter/3 chunks, resume sau interrupt, import đảo thứ tự/idempotent, giữ
+   manual edit trước result, approval và official TXT; snapshot cũ byte-identical.
+   Đây chưa phải model inference, GPU hoặc Drive proof.
 2. **P2 runtime còn mở:** chunk theo tokenizer và context budget đã được đóng
    băng trong v2. Tái dùng pattern
    `build_plan` P0: target source 768 tokens, input tối đa 2.048 gồm chat template/

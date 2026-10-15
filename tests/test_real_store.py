@@ -120,6 +120,31 @@ class RealStoreTests(unittest.TestCase):
             self.assertEqual(db.execute('SELECT COUNT(*) FROM real_jobs').fetchone()[0], 1)
             self.assertEqual(db.execute('SELECT COUNT(*) FROM real_results').fetchone()[0], len(results))
 
+    def test_real_revision_conflict_late_import_and_job_scoped_official_export(self):
+        chunk = self.manifest['chunks'][0]
+        self.store.save_real_revision(self.job, chunk['chunk_id'], 'Edit before result', 0, None, False)
+        result = self.result(chunk)
+        self.store.import_real_result(canonical_bytes(result))
+        state = self.store.get_real_job(self.job)['chunks'][0]
+        self.assertEqual(state['revision']['edited_text'], 'Edit before result')
+        self.assertTrue(state['stale'])
+        self.assertIn('Edit before result', self.store.export_real_txt(self.job, draft=True))
+        with self.assertRaises(DomainError):
+            self.store.export_real_txt(self.job)
+        with self.assertRaises(DomainError):
+            self.store.save_real_revision(self.job, chunk['chunk_id'], 'Stale tab', 0, result['checksum'], True)
+        self.store.save_real_revision(self.job, chunk['chunk_id'], 'Approved edit', 1, result['checksum'], True)
+        with self.assertRaises(DomainError):
+            self.store.export_real_txt(self.job)
+        for other in self.manifest['chunks'][1:]:
+            out = self.result(other)
+            self.store.import_real_result(canonical_bytes(out))
+            self.store.save_real_revision(self.job, other['chunk_id'], 'Approved', 0, out['checksum'], True)
+        self.assertIn('Approved edit', self.store.export_real_txt(self.job))
+        second = self.store.create_real_job(self.book, self.tokenizer, self.snapshot)
+        with self.assertRaises(DomainError):
+            self.store.export_real_txt(second)
+
     def test_real_runner_files_import_into_store_and_resume_after_restart(self):
         def generate(manifest, chunk):
             return {'translated_text': 'Bản dịch fixture.', 'output_tokens': 3, 'finish_reason': 'eos',

@@ -58,6 +58,11 @@ class Store:
                     job_id TEXT NOT NULL, chunk_id TEXT NOT NULL, checksum TEXT NOT NULL,
                     payload TEXT NOT NULL, PRIMARY KEY(job_id, chunk_id),
                     FOREIGN KEY(job_id, chunk_id) REFERENCES real_chunks(job_id, chunk_id));
+                CREATE TABLE IF NOT EXISTS real_revisions (
+                    job_id TEXT NOT NULL, chunk_id TEXT NOT NULL, revision INTEGER NOT NULL,
+                    edited_text TEXT NOT NULL, base_result_hash TEXT, approved INTEGER NOT NULL,
+                    created_at TEXT NOT NULL, PRIMARY KEY(job_id,chunk_id,revision),
+                    FOREIGN KEY(job_id,chunk_id) REFERENCES real_chunks(job_id,chunk_id));
             ''')
 
     @contextmanager
@@ -283,6 +288,13 @@ class Store:
                 raise DomainError('Job not found.', 404)
             return validate_manifest(load_json(row['manifest'].encode()))
 
+    def _job_book(self, job_id):
+        with self._connect() as db:
+            row = db.execute('SELECT book_id FROM jobs WHERE id=?', (job_id,)).fetchone()
+            if row is None:
+                raise DomainError('Job not found.', 404)
+            return row['book_id']
+
     def _after_result_insert(self, db):
         """Fault injection seam: transaction must roll back on interruption."""
 
@@ -408,9 +420,97 @@ class Store:
                                      LEFT JOIN real_results r USING(job_id,chunk_id)
                                      WHERE c.job_id=? ORDER BY c.chapter_ordinal,c.ordinal''', (job_id,)):
                 chunk = load_json(row['payload'].encode())
-                chunks.append({'chunk': chunk, 'result': load_json(row['result'].encode()) if row['result'] else None})
+                result = load_json(row['result'].encode()) if row['result'] else None
+                rev = self._latest_real_revision(db, job_id, chunk['chunk_id'])
+                chunks.append({'chunk': chunk, 'result': result, 'revision': dict(rev) if rev else None,
+                               'stale': bool(rev and rev['base_result_hash'] != (result['checksum'] if result else None))})
             return {'id': job_id, 'status': job['status'], 'completed': sum(c['result'] is not None for c in chunks),
                     'total': len(chunks), 'chunks': chunks, 'manifest': manifest}
+
+    @staticmethod
+    def _latest_real_revision(db, job_id, chunk_id):
+        return db.execute('SELECT * FROM real_revisions WHERE job_id=? AND chunk_id=? ORDER BY revision DESC LIMIT 1',
+                          (job_id, chunk_id)).fetchone()
+
+    def list_real_jobs(self, book_id):
+        with self._connect() as db:
+            self._book(db, book_id)
+            return [dict(row) for row in db.execute('''SELECT j.id,j.status,
+                (SELECT COUNT(*) FROM real_results r WHERE r.job_id=j.id) completed,
+                (SELECT COUNT(*) FROM real_chunks c WHERE c.job_id=j.id) total
+                FROM real_jobs j WHERE j.book_id=? ORDER BY j.sequence DESC''', (book_id,))]
+
+    def real_job_book(self, job_id):
+        with self._connect() as db:
+            row = db.execute('SELECT book_id FROM real_jobs WHERE id=?', (job_id,)).fetchone()
+            if row is None:
+                raise DomainError('Real job not found.', 404)
+            return row['book_id']
+
+    def chunk_book(self, chunk_id):
+        with self._connect() as db:
+            row = db.execute('SELECT ch.book_id FROM chunks c JOIN chapters ch ON c.chapter_id=ch.id WHERE c.id=?',
+                             (chunk_id,)).fetchone()
+            if row is None:
+                raise DomainError('Chunk not found.', 404)
+            return row['book_id']
+
+    def save_real_revision(self, job_id, chunk_id, text, base_revision, base_result_hash, approved):
+        if (type(text) is not str or not text.strip() or '\x00' in text or
+                any(0xD800 <= ord(char) <= 0xDFFF for char in text) or len(text.encode('utf-8')) > MAX_TEXT):
+            raise DomainError('Revision must contain nonempty text within 4 MiB.')
+        if type(base_revision) is not int or base_revision < 0 or type(approved) is not bool:
+            raise DomainError('Invalid revision or approval.')
+        if base_result_hash is not None and (type(base_result_hash) is not str or not re.fullmatch(r'[a-f0-9]{64}', base_result_hash)):
+            raise DomainError('Invalid base result hash.')
+        manifest = self.get_real_manifest(job_id)
+        if chunk_id not in {c['chunk_id'] for c in manifest['chunks']}:
+            raise DomainError('Chunk not found in this real job.', 404)
+        with self._connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute('''SELECT c.payload,r.checksum FROM real_chunks c LEFT JOIN real_results r USING(job_id,chunk_id)
+                                WHERE c.job_id=? AND c.chunk_id=?''', (job_id, chunk_id)).fetchone()
+            if row is None:
+                raise DomainError('Chunk not found in this real job.', 404)
+            current = row['checksum']
+            latest = self._latest_real_revision(db, job_id, chunk_id)
+            if base_revision != (latest['revision'] if latest else 0) or base_result_hash != current:
+                raise DomainError('Revision conflict. Reload the current text before saving.', 409)
+            if approved and current is None:
+                raise DomainError('A revision requires a completed result before approval.')
+            db.execute('INSERT INTO real_revisions VALUES (?,?,?,?,?,?,?)',
+                       (job_id, chunk_id, base_revision + 1, text, current, int(approved), now()))
+
+    def export_real_txt(self, job_id, draft=False):
+        if type(draft) is not bool:
+            raise DomainError('Invalid draft option.')
+        manifest = self.get_real_manifest(job_id)
+        review = self.get_real_job(job_id)
+        with self._connect() as db:
+            book = self._book(db, manifest['book_id'])
+            titles = {r['ordinal']: r['title'] for r in db.execute('SELECT ordinal,title FROM chapters WHERE book_id=?', (book['id'],))}
+        missing = 0
+        chapters = []
+        current = {x['chunk']['chunk_id']: x for x in review['chunks']}
+        for chapter_ordinal in sorted({c['chapter_ordinal'] for c in manifest['chunks']}):
+            parts = []
+            for chunk in (c for c in manifest['chunks'] if c['chapter_ordinal'] == chapter_ordinal):
+                state = current[chunk['chunk_id']]
+                result, rev = state['result'], state['revision']
+                valid = result and rev and rev['approved'] and rev['base_result_hash'] == result['checksum']
+                if not result:
+                    missing += 1
+                    parts.append('[MISSING CHUNK ' + chunk['chunk_id'] + ']' +
+                                 ('\n' + rev['edited_text'] if rev else ''))
+                else:
+                    if not valid:
+                        missing += 1
+                    text = rev['edited_text'] if rev else result['translated_text']
+                    parts.append(text if valid else '[UNREVIEWED CHUNK ' + chunk['chunk_id'] + ']\n' + text)
+            chapters.append(titles[chapter_ordinal] + '\n\n' + '\n\n'.join(parts))
+        if missing and not draft:
+            raise DomainError('Official export blocked: every chunk needs a current approved revision.')
+        return ('[DRAFT — missing or unreviewed chunks: ' + str(missing) + ']\n\n' if draft else '') + '\n\n'.join(chapters)
 
     def _after_real_result_insert(self, db):
         """Fault injection seam: transaction must roll back on interruption."""

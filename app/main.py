@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse, Response
+from starlette.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.datastructures import UploadFile
@@ -131,7 +132,9 @@ def create_app(data_dir: Path | None = None):
 
     @app.get('/books/{book_id}')
     async def book(request: Request, book_id: str):
-        return page(request, 'book.html', book=app.state.store.get_book(book_id))
+        data = app.state.store.get_book(book_id)
+        data['real_jobs'] = app.state.store.list_real_jobs(book_id)
+        return page(request, 'book.html', book=data)
 
     @app.post('/books/{book_id}/jobs')
     async def job(request: Request, book_id: str):
@@ -142,6 +145,8 @@ def create_app(data_dir: Path | None = None):
     @app.post('/books/{book_id}/jobs/{job_id}/run')
     async def run(request: Request, book_id: str, job_id: str):
         await form(request)
+        if app.state.store._job_book(job_id) != book_id:
+            raise DomainError('Job not found for this book.', 404)
         app.state.store.run_fake(job_id, limit=1)
         return RedirectResponse(f'/books/{book_id}', 303)
 
@@ -159,12 +164,89 @@ def create_app(data_dir: Path | None = None):
     @app.post('/books/{book_id}/chunks/{chunk_id}')
     async def save(request: Request, book_id: str, chunk_id: str):
         data = await form(request)
+        if app.state.store.chunk_book(chunk_id) != book_id:
+            raise DomainError('Chunk not found for this book.', 404)
         try:
             revision = int(str(data.get('revision', '')))
         except ValueError:
             raise DomainError('Revision không hợp lệ.')
         app.state.store.save_revision(chunk_id, str(data.get('text', '')), revision, str(data.get('base_result_hash', '')) or None)
         return RedirectResponse(f'/books/{book_id}#chunk-{chunk_id}', 303)
+
+    @app.post('/books/{book_id}/real-jobs')
+    async def create_real_job(request: Request, book_id: str):
+        await form(request)
+        app.state.store.get_book(book_id)
+        from app.real_bundles import QWEN35, MODELS, default_snapshot, load_tokenizer
+        try:
+            tokenizer, commit = await run_in_threadpool(load_tokenizer, QWEN35, MODELS[QWEN35])
+        except ImportError as exc:
+            raise DomainError('Thiếu tokenizer. Cài extra .[tokenizer] rồi thử lại.') from exc
+        except Exception as exc:
+            raise DomainError('Không tải được tokenizer Qwen3.5. Hãy kiểm tra kết nối rồi thử lại.') from exc
+        snap = default_snapshot(QWEN35, commit, tokenizer.chat_template)
+        job_id = await run_in_threadpool(app.state.store.create_real_job, book_id, tokenizer, snap)
+        return RedirectResponse(f'/books/{book_id}/real-jobs/{job_id}', 303)
+
+    @app.get('/translate-notebook')
+    async def translate_notebook():
+        path = HERE.parent / 'notebooks' / 'translate.ipynb'
+        if not path.is_file():
+            raise DomainError('Notebook dịch batch chưa được tạo.', 404)
+        return Response(path.read_bytes(), media_type='application/x-ipynb+json',
+                        headers={'Content-Disposition': 'attachment; filename="translate.ipynb"'})
+
+    def own_real_job(book_id, job_id):
+        if app.state.store.real_job_book(job_id) != book_id:
+            raise DomainError('Real job not found for this book.', 404)
+
+    @app.get('/books/{book_id}/real-jobs/{job_id}')
+    async def real_review(request: Request, book_id: str, job_id: str):
+        own_real_job(book_id, job_id)
+        return page(request, 'real_job.html', book=app.state.store.get_book(book_id), job=app.state.store.get_real_job(job_id))
+
+    @app.get('/books/{book_id}/real-jobs/{job_id}/manifest')
+    async def real_manifest(book_id: str, job_id: str):
+        own_real_job(book_id, job_id)
+        from app.real_bundles import canonical_bytes
+        return Response(canonical_bytes(app.state.store.get_real_manifest(job_id)), media_type='application/json',
+                        headers={'Content-Disposition': 'attachment; filename="manifest.json"'})
+
+    @app.post('/books/{book_id}/real-jobs/{job_id}/results')
+    async def real_result(request: Request, book_id: str, job_id: str):
+        data = await form(request)
+        own_real_job(book_id, job_id)
+        raw = await upload(data)
+        from app.bundles import load_json
+        try:
+            payload = load_json(raw)
+            if payload.get('job_id') != job_id:
+                raise DomainError('Result belongs to a different job.')
+        except AttributeError:
+            raise DomainError('Invalid real result JSON.')
+        status = app.state.store.import_real_result(raw)
+        return page(request, 'error.html', message=f'Kết quả: {status}. Dữ liệu đã được kiểm tra.', success=True)
+
+    @app.post('/books/{book_id}/real-jobs/{job_id}/chunks/{chunk_id}')
+    async def save_real(request: Request, book_id: str, job_id: str, chunk_id: str):
+        data = await form(request)
+        own_real_job(book_id, job_id)
+        try:
+            revision = int(str(data.get('revision', '')))
+        except ValueError:
+            raise DomainError('Revision không hợp lệ.')
+        approve = data.get('approved') == 'true'
+        app.state.store.save_real_revision(job_id, chunk_id, str(data.get('text', '')), revision,
+                                           str(data.get('base_result_hash', '')) or None, approve)
+        return RedirectResponse(f'/books/{book_id}/real-jobs/{job_id}#chunk-{chunk_id}', 303)
+
+    @app.get('/books/{book_id}/real-jobs/{job_id}/export')
+    async def export_real(book_id: str, job_id: str, draft: bool = False):
+        own_real_job(book_id, job_id)
+        content = app.state.store.export_real_txt(job_id, draft=draft)
+        suffix = '-draft' if draft else ''
+        return Response(content, media_type='text/plain; charset=utf-8',
+                        headers={'Content-Disposition': f'attachment; filename="{job_id}{suffix}.txt"'})
 
     @app.get('/books/{book_id}/export')
     async def export(book_id: str, draft: bool = False):

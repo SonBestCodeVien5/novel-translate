@@ -5,7 +5,7 @@ import re
 import sqlite3
 import uuid
 from pathlib import Path
-from .bundles import (DomainError, MAX_TEXT, atomic_write, canonical_bytes, digest, fake_result,
+from .bundles import (DomainError, MAX_BYTES, MAX_TEXT, atomic_write, canonical_bytes, digest, fake_result,
                       input_hash, load_json, now, snapshot, text_hash, validate_manifest, validate_result)
 
 
@@ -17,7 +17,7 @@ class Store:
     def __init__(self, data_dir):
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
-        for directory in ('sources', 'batches', 'results', 'rejected'):
+        for directory in ('sources', 'batches', 'results', 'rejected', 'real-batches', 'real-results'):
             (self.data_dir / directory).mkdir(exist_ok=True)
         with self._connect() as db:
             db.executescript('''
@@ -45,6 +45,19 @@ class Store:
                     chunk_id TEXT NOT NULL REFERENCES chunks(id), revision INTEGER NOT NULL,
                     edited_text TEXT NOT NULL, base_result_hash TEXT, created_at TEXT NOT NULL,
                     PRIMARY KEY(chunk_id, revision));
+                CREATE TABLE IF NOT EXISTS real_jobs (
+                    sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT UNIQUE NOT NULL,
+                    book_id TEXT NOT NULL REFERENCES books(id), manifest TEXT NOT NULL,
+                    manifest_hash TEXT NOT NULL, status TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS real_chunks (
+                    job_id TEXT NOT NULL REFERENCES real_jobs(id), chunk_id TEXT NOT NULL,
+                    chapter_id TEXT NOT NULL REFERENCES chapters(id), chapter_ordinal INTEGER NOT NULL,
+                    ordinal INTEGER NOT NULL, payload TEXT NOT NULL,
+                    PRIMARY KEY(job_id, chunk_id), UNIQUE(job_id, chapter_ordinal, ordinal));
+                CREATE TABLE IF NOT EXISTS real_results (
+                    job_id TEXT NOT NULL, chunk_id TEXT NOT NULL, checksum TEXT NOT NULL,
+                    payload TEXT NOT NULL, PRIMARY KEY(job_id, chunk_id),
+                    FOREIGN KEY(job_id, chunk_id) REFERENCES real_chunks(job_id, chunk_id));
             ''')
 
     @contextmanager
@@ -328,6 +341,123 @@ class Store:
         with self._connect() as db:
             completed = db.execute('SELECT COUNT(*) FROM results WHERE job_id=?', (job_id,)).fetchone()[0]
         return {'completed': completed, 'total': len(manifest['chunks'])}
+
+    @staticmethod
+    def _verify_real_source(book, chapters, manifest):
+        if (manifest['book_id'] != book['id'] or manifest['source_language'] != book['source_language']
+            or manifest['target_language'] != book['target_language'] or manifest['source_hash'] != book['source_hash']):
+            raise DomainError('Manifest does not match the current book source.')
+        grouped = {}
+        for chunk in manifest['chunks']:
+            grouped.setdefault(chunk['chapter_ordinal'], []).append(chunk)
+        if len(grouped) != len(chapters):
+            raise DomainError('Manifest chapter list does not match the current book.')
+        for ordinal, chapter in enumerate(chapters):
+            chunks = grouped.get(ordinal, [])
+            if (not chunks or any(c['chapter_id'] != chapter['id'] or c['chapter_ordinal'] != ordinal for c in chunks)
+                or ''.join(c['source_text'] for c in chunks) != chapter['source_text']):
+                raise DomainError('Manifest source or chapter order does not match the current book.')
+
+    def create_real_job(self, book_id, tokenizer, snapshot):
+        from .real_bundles import build_manifest, validate_manifest as validate_real_manifest
+        with self._connect() as db:
+            book = self._book(db, book_id)
+            chapters = [dict(row) for row in db.execute(
+                'SELECT id,ordinal,source_text FROM chapters WHERE book_id=? ORDER BY ordinal', (book_id,))]
+            if text_hash(''.join(row['source_text'] for row in chapters)) != book['source_hash']:
+                raise DomainError('Stored book source integrity error.')
+            manifest = build_manifest(
+                {key: book[key] for key in ('id', 'source_language', 'target_language', 'source_hash')},
+                chapters, tokenizer, snapshot)
+            validate_real_manifest(manifest)
+            self._verify_real_source(book, chapters, manifest)
+            raw = canonical_bytes(manifest)
+            db.execute('BEGIN IMMEDIATE')
+            atomic_write(self.data_dir / 'real-batches' / (manifest['job_id'] + '.json'), raw)
+            db.execute('INSERT INTO real_jobs(id,book_id,manifest,manifest_hash,status) VALUES (?,?,?,?,?)',
+                       (manifest['job_id'], book_id, raw.decode(), digest(manifest), 'exported'))
+            for chunk in manifest['chunks']:
+                db.execute('INSERT INTO real_chunks VALUES (?,?,?,?,?,?)',
+                           (manifest['job_id'], chunk['chunk_id'], chunk['chapter_id'], chunk['chapter_ordinal'],
+                            chunk['ordinal'], canonical_bytes(chunk).decode()))
+        return manifest['job_id']
+
+    def get_real_manifest(self, job_id):
+        from .real_bundles import validate_manifest as validate_real_manifest
+        with self._connect() as db:
+            row = db.execute('SELECT manifest,manifest_hash,book_id FROM real_jobs WHERE id=?', (job_id,)).fetchone()
+            if row is None:
+                raise DomainError('Real job not found.', 404)
+            manifest = validate_real_manifest(load_json(row['manifest'].encode()))
+            if digest(manifest) != row['manifest_hash']:
+                raise DomainError('Stored real manifest integrity error.')
+            book = self._book(db, row['book_id'])
+            chapters = [dict(chapter) for chapter in db.execute(
+                'SELECT id,ordinal,source_text FROM chapters WHERE book_id=? ORDER BY ordinal', (row['book_id'],))]
+            if text_hash(''.join(chapter['source_text'] for chapter in chapters)) != book['source_hash']:
+                raise DomainError('Stored book source integrity error.')
+            self._verify_real_source(book, chapters, manifest)
+            return manifest
+
+    def get_real_job(self, job_id):
+        manifest = self.get_real_manifest(job_id)
+        with self._connect() as db:
+            job = db.execute('SELECT status FROM real_jobs WHERE id=?', (job_id,)).fetchone()
+            chunks = []
+            for row in db.execute('''SELECT c.payload,r.payload AS result FROM real_chunks c
+                                     LEFT JOIN real_results r USING(job_id,chunk_id)
+                                     WHERE c.job_id=? ORDER BY c.chapter_ordinal,c.ordinal''', (job_id,)):
+                chunk = load_json(row['payload'].encode())
+                chunks.append({'chunk': chunk, 'result': load_json(row['result'].encode()) if row['result'] else None})
+            return {'id': job_id, 'status': job['status'], 'completed': sum(c['result'] is not None for c in chunks),
+                    'total': len(chunks), 'chunks': chunks, 'manifest': manifest}
+
+    def _after_real_result_insert(self, db):
+        """Fault injection seam: transaction must roll back on interruption."""
+
+    def import_real_result(self, raw):
+        from .real_bundles import validate_result as validate_real_result
+        if not isinstance(raw, bytes):
+            raise DomainError('Result must be a JSON file.')
+        try:
+            result = load_json(raw)
+            if type(result) is not dict or type(result.get('job_id')) is not str:
+                raise DomainError('Missing job ID.')
+            manifest = self.get_real_manifest(result['job_id'])
+            validate_real_result(result, manifest)
+            with self._connect() as db:
+                db.execute('BEGIN IMMEDIATE')
+                previous = db.execute('SELECT checksum FROM real_results WHERE job_id=? AND chunk_id=?',
+                                      (result['job_id'], result['chunk_id'])).fetchone()
+                if previous:
+                    if previous['checksum'] == result['checksum']:
+                        return 'duplicate'
+                    raise DomainError('Conflicting real result: saved output was preserved.', 409)
+                path = self.data_dir / 'real-results' / result['job_id'] / (result['chunk_id'] + '.json')
+                if path.exists():
+                    if path.stat().st_size > MAX_BYTES:
+                        raise DomainError('Stored durable result exceeds the size limit.')
+                    with path.open('rb') as stream:
+                        durable = stream.read(MAX_BYTES + 1)
+                    if len(durable) > MAX_BYTES:
+                        raise DomainError('Stored durable result exceeds the size limit.')
+                    saved = validate_real_result(load_json(durable), manifest)
+                    if saved['checksum'] != result['checksum']:
+                        raise DomainError('Conflicting durable real result: saved output was preserved.', 409)
+                else:
+                    atomic_write(path, canonical_bytes(result))
+                db.execute('INSERT INTO real_results VALUES (?,?,?,?)',
+                           (result['job_id'], result['chunk_id'], result['checksum'], canonical_bytes(result).decode()))
+                self._after_real_result_insert(db)
+                count = db.execute('SELECT COUNT(*) FROM real_results WHERE job_id=?', (result['job_id'],)).fetchone()[0]
+                db.execute('UPDATE real_jobs SET status=? WHERE id=?',
+                           ('completed' if count == len(manifest['chunks']) else 'partial', result['job_id']))
+            return 'imported'
+        except DomainError:
+            if len(raw) <= MAX_BYTES:
+                path = self.data_dir / 'real-results' / 'rejected' / (new_id() + '.json')
+                atomic_write(path, raw)
+            raise
 
     def save_revision(self, chunk_id, text, base_revision, base_result_hash):
         if type(text) is not str or not text.strip() or any(0xD800 <= ord(char) <= 0xDFFF for char in text) or len(text.encode('utf-8')) > MAX_TEXT or '\x00' in text:

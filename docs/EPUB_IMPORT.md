@@ -1,8 +1,9 @@
 # Nhập EPUB local và luồng Colab
 
-Phạm vi được người dùng mở ngày 14/10/2026: nhập EPUB vào SQLite local bằng CLI.
-Không thay notebook đang chạy; chưa mở provider sản xuất, EPUB export hay điều phối
-Colab tự động. Chưa có kết quả go/no-go P0.
+Phạm vi nhập EPUB được mở ngày 14/10/2026. Sau đó có thêm batch v2 offline local
+cho TXT/EPUB source rows, nhưng EPUB chưa được chạy qua tokenizer/model thật.
+Không thay notebook P0; chưa có EPUB export hay điều phối Colab tự động. Chưa có
+kết quả go/no-go P0.
 
 ## Chạy import
 
@@ -34,36 +35,42 @@ File EPUB gốc giữ nguyên bytes trong thư mục sources local; SQLite lưu 
 ảnh/link/metadata còn trong EPUB gốc. Mỗi mục XHTML spine là một đơn vị nguồn ban
 đầu, có thể gồm cả bìa/giới thiệu; chưa tự đoán nhiều chương trong một XHTML.
 
-## Luồng đã chốt
+## Luồng file hiện có
 
 ```text
 EPUB local → backend parse spine → SQLite local + raw EPUB/mapping
-                                  ↓ xuất job snapshot JSON
-                         Drive: batch/manifest + source chunks
-                                  ↓ CLI đã kiểm chứng hoặc notebook
-                         Colab: load model → dịch từng chunk
-                                  ↓ lưu mỗi chunk hoàn tất
-                         Drive: result + timing/provenance/checksum
-                                  ↓ tải về và validate
-                         backend local → nhập SQLite → review → xuất
+                                  ↓ real_batch export
+                         local SQLite + manifest v2
+                                  ↓ copy manifest + runner code (thủ công)
+                         Colab file runner → result JSON/chunk
+                                  ↓ copy result files (thủ công)
+                         real_batch import → local SQLite
 ```
 
 SQLite chỉ do backend local truy cập. Không upload database lên Drive hoặc mở nó
-trong Colab. Batch gồm ID/thứ tự, source text/hash, prompt/glossary/config và model
-revision; kết quả phải khớp đúng batch trước khi nhập. Import trùng là no-op;
-kết quả xung đột hoặc lệch snapshot bị từ chối, không ghi đè bản sửa tay.
+trong Colab. Batch v2 gồm ID/thứ tự, source text/hash, input IDs, prompt/glossary/
+config và model/tokenizer revision; result phải khớp batch, provenance và EOS
+trước khi nhập. Import trùng là no-op; kết quả xung đột hoặc lệch source/snapshot
+bị từ chối. P1 manual revisions vẫn được giữ, nhưng kết quả v2 chưa được chiếu
+vào UI review hay export.
 
-Drive dùng để giữ checkpoint ngoài VM. Không chờ dịch toàn sách xong mới tải
-result về; có thể nhận từng phần đã hoàn tất. Mất phiên thì load lại model,
-validate checkpoint, bỏ qua phần đã lưu và dịch lại chunk dở.
+Runner lưu từng result ra thư mục output trước khi tiếp tục. Có thể dùng thư mục
+Drive làm checkpoint ngoài VM, nhưng cách mount/copy và độ bền Drive chưa kiểm
+chứng. Mất phiên thì người dùng chạy lại cùng manifest/output; runner kiểm
+checkpoint hợp lệ, bỏ qua result đã lưu và dịch lại chunk dở.
 
-## Giới hạn kết nối hiện tại
+## Giới hạn đã biết
+
+Offline P2 có bundle v2, planner tokenizer, runner file-only, Store local và CLI
+export/import/status. Kiểm thử dùng tokenizer/generation giả. Chưa chạy tokenizer
+thật, tải weights, GPU, Drive hoặc Colab trên tài khoản người dùng; chưa kiểm auth,
+quota, VRAM, thời gian hoặc độ bền sync.
 
 Notebook P0 hiện là runner benchmark riêng; corpus/results của nó chưa cùng schema
-bundle app P1 và chưa được import tự động vào SQLite. Cần nối provider, tokenizer
-chunking và hợp đồng batch/result ở P2 trước khi dùng luồng end-to-end thật.
+bundle v2 và chưa có adapter vào SQLite. CLI `real_batch.py` không tạo phiên Colab,
+mount Drive hoặc tự chuyển file. UI P1 vẫn chỉ xử lý fake provider; kết quả v2
+chưa có flow review/export chính thức. Xem [hướng dẫn batch v2](REAL_BATCH.md).
 
-[Colab CLI chính thức](https://github.com/googlecolab/google-colab-cli) hỗ trợ
-provision runtime, mount Drive, execute, upload/download và stop. Máy hiện tại
-chưa có CLI; chưa kiểm chứng auth/GPU/quota/transfers/resume trên WSL/tài khoản
-người dùng (P2-03). Chỉ làm script điều phối sau kiểm chứng; notebook là fallback.
+[Colab CLI chính thức](https://github.com/googlecolab/google-colab-cli) chưa được
+cài hay kiểm chứng trên WSL/tài khoản người dùng (P2-03). P2-04 tự động điều phối
+vẫn phụ thuộc cổng đó; thao tác file thủ công chưa đạt DoD P2.

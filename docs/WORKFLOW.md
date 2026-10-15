@@ -22,9 +22,9 @@ Báo ngắn kết quả thực tế, kiểm tra đã chạy, phần chưa kiểm
 không biến đề xuất, output đã lưu hoặc test offline thành bằng chứng benchmark.
 
 Main giữ model đang chọn, chốt phạm vi và hợp đồng, giao phần triển khai cho
-worker rồi tích hợp và kiểm chứng cuối. “Light” nghĩa là ưu tiên reasoning `low`
-cho worker `gpt-6.1-sol`, không phải một model alias. Khả năng có model phụ thuộc
-runtime/tài khoản; nếu thiếu phải báo giới hạn, không tự thay model.
+worker rồi tích hợp và kiểm chứng cuối. Worker ưu tiên `gpt-6-luna`, reasoning
+`low` (ý nghĩa của “light”); không dùng `light` làm model alias. Khả năng có model
+phụ thuộc runtime/tài khoản; nếu thiếu phải báo giới hạn, không tự thay model.
 
 ## Giao việc ít context
 

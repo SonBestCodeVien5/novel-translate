@@ -1,6 +1,110 @@
-# Bàn giao phiên — 14/10/2026 (Asia/Bangkok)
+# Bàn giao phiên — 15/10/2026 (Asia/Bangkok)
+
+Đọc sau WORKFLOW; trạng thái mới nhất ở mục đầu, các mục sau là lịch sử.
+
+## P0 hiện tại và notebook đã làm sạch — 15/10/2026
+
+- Chưa có benchmark hoàn tất hoặc quyết định go/no-go. Các lượt Qwen2.5 trước
+  dừng ở chunk đầu do output `max_tokens`/lặp; lần cấu hình FP32 sau đó OOM ngay
+  lúc nạp model. Chưa có căn cứ nói cấu hình đã hết lỗi.
+- Bước tiếp theo là chờ người dùng xác nhận baseline dịch tay hoàn tất và cung
+  cấp bằng chứng lượt chạy. Chưa đọc/chấm output trước baseline; không mở thêm
+  phiên GPU hoặc dùng thêm ngân sách nếu chưa có quyết định riêng.
+- P2 batch v2 hiện chỉ được kiểm offline bằng synthetic tokenizer/generation.
+  Sau khi cổng P0 được người dùng xử lý, cần xác minh tokenizer/model và luồng
+  Colab thực theo ngân sách đã chốt. UI review/export, EPUB export và điều phối
+  Colab vẫn để sau.
+- Trước khi dọn notebook, đã lưu nguyên bytes hai bản gốc trong Git-ignore tại
+  `data/backups/notebooks/20261015T145723236754Z/`; `verification.json` ghi SHA-256
+  và bản sao đã được đọc lại so byte-for-byte. Hai notebook tracked được refresh
+  bootstrap từ source hiện tại, đặt execution count về `null`, xóa outputs và
+  Colab provenance; giữ model/config/prompt/generation code, `p0_bootstrap`, GPU
+  và kernel metadata. Không sửa kernel đang chạy, upload Drive hay xem output.
+- Kiểm notebook P0: JSON, source nhúng, syntax/flow bootstrap và outputs sạch đạt;
+  `.venv/bin/python -m pytest -q tests/test_p0.py tests/test_p0_progress.py` —
+  17 passed. Refresh đã sửa mismatch Qwen3 bootstrap được thấy ở kiểm tra trước.
+- Main chạy lại toàn bộ suite sau khi làm sạch: `timeout 60s .venv/bin/python
+  -m pytest -q` ngoài sandbox — 80 passed, 23 subtests passed trong 10,07 giây;
+  còn một cảnh báo deprecation Starlette/httpx, không có failure. `git diff
+  --check` đạt. Không commit dữ liệu local, DB hoặc output notebook.
+- Worker staging hiện chọn `gpt-6-luna`, reasoning `low`, đồng bộ với AGENTS.md;
+  chưa cài hoặc kích hoạt cấu hình runtime.
+
+## P2 offline: batch thật v2 và Store local — 15/10/2026
+
+- Có `app/real_bundles.py` v2 với planner tokenizer, manifest snapshot bất biến,
+  provenance pinned model/tokenizer và result chỉ nhận status completed/EOS;
+  `app/real_runner.py` chạy file-only, lưu một result JSON mỗi chunk, resume từ
+  checkpoint đã validate. Đây là mã kiểm thử offline, không phải bằng chứng model
+  đã chạy.
+- `Store` có ba bảng additive `real_jobs`, `real_chunks`, `real_results`, thư mục
+  `real-batches/` và `real-results/`; v1 fake tables, UI/latest fake job và manual
+  revisions được giữ riêng. Import kiểm source/chapter hiện tại, checksum,
+  provenance, duplicate/conflict, và có file-first recovery sau transaction crash.
+- `scripts/real_batch.py` có export/import/status. Export dùng tokenizer-only
+  snapshot theo revision pin, không tải weights; CLI báo `transformers==4.57.3`
+  nếu thiếu package. Hướng dẫn thao tác ở [REAL_BATCH.md](REAL_BATCH.md).
+- Database thật chỉ được main kiểm tra ở chế độ SQLite `mode=ro`; chưa migrate
+  hoặc ghi DB thật. `Store.__init__` sẽ tạo ba bảng bằng `CREATE TABLE IF NOT
+  EXISTS` lần mở kế tiếp. Không chạy GPU, tải model hay upload Drive. P0 JSON chưa
+  có adapter sang v2; kết quả v2 chưa xuất hiện trong UI review/export. EPUB
+  export vẫn chưa có.
+- Test synthetic tokenizer/generation và CLI guard: `.venv/bin/python -m pytest
+  -q tests/test_real_store.py tests/test_core.py tests/test_epub.py` — 20 passed,
+  23 subtests passed. Chưa xác minh network/tokenizer thật, CUDA/VRAM/quota, Colab,
+  Drive sync durability, model output hoặc chất lượng dịch.
+- Main chạy cả suite: 79 passed, 23 subtests, 1 failure và 1 warning. Cả 33 test
+  P2 mới đều đạt; failure duy nhất là `P0Tests.test_portable_notebook_bootstrap_matches_sources_and_runs_offline`,
+  mismatch notebook Qwen3 đã có trước thay đổi này. Main xác nhận checksum
+  notebook Qwen3 không đổi; checksum notebook Qwen2.5 đổi trong phiên do thay đổi
+  bên ngoài, không do worker/main. Chỉ metadata execution/output type được đọc,
+  không đọc bản dịch. `py_compile`, CLI `--help`, `git diff --check` đều đạt.
+- [SQLITE_SCHEMA.md](SQLITE_SCHEMA.md), [ROADMAP.md](ROADMAP.md),
+  [EPUB_IMPORT.md](EPUB_IMPORT.md) và README có giới hạn và trạng thái hiện tại.
+
+# Lịch sử — 14/10/2026 (Asia/Bangkok)
 
 Đọc sau WORKFLOW; đây là trạng thái vận hành, không thay PLAN/ROADMAP.
+
+## Qwen2.5 OOM khi tải FP32 — 14/10/2026
+
+- Notebook người dùng gửi có `OutOfMemoryError` ngay trong `from_pretrained`,
+  trước sinh chunk. Snapshot `a22f53e644544c0e85dde20dca821b8388b175ec25700bc5cd4c545501b1a0e5`
+  vẫn NF4, compute/load FP32. Cần thêm 2,03 GiB khi GPU T4 14,56 GiB chỉ còn
+  1,81 GiB; log ghi PID 15033 dùng 6,85 GiB và process hiện tại dùng 5,91 GiB.
+- User xác nhận chỉ chạy Qwen2.5. Chưa xác định process kia thuộc kernel cũ
+  hay tiến trình nào; không quy cho Qwen3, không tự kill. Đây là OOM tải model,
+  chưa có bằng chứng FP32 đã hết lỗi lặp. Không suy ra ngưỡng VRAM an toàn từ
+  một allocation thất bại, không tự tăng ngân sách/đổi model/precision lần nữa.
+- Notebook thêm log PID/VRAM trước load và hướng xử lý OOM: ngắt kernel cũ,
+  Colab `Runtime -> Disconnect and delete runtime`, kết nối phiên GPU mới.
+  Tạo lại VM không xóa corpus/checkpoint trên Drive; giữ cùng snapshot để resume.
+  Chỉ rerun cell có thể còn giữ process/model cũ. Không tự chạy GPU thêm.
+- Kiểm offline: 27 passed, 1 deselected (test Qwen3 notebook/source đang giữ
+  nguyên từ phiên trước). Mock OOM kiểm thông báo, exception cause, log PID/VRAM
+  và phục hồi globals; Qwen2.5 syntax/bootstrap khớp source, không output lưu.
+
+
+## Qwen2.5 vẫn lặp sau phạt lặp — 14/10/2026
+
+- Lượt sau dùng snapshot `ad12f324e4fb8ca3e92e2b7950e2cb29085b7ad34071d69c647625171222d3a8`
+  vẫn dừng ở `ch01-0000`: 826 input / 2.048 output tokens, `max_tokens`,
+  `needs_review`, không exception generation. Đọc checkpoint Drive: 2.012 token
+  có ID 0, 16 token cuối toàn ID 0. Phạt lặp 1.1 không giải quyết được lỗi.
+- Đối chiếu [Qwen troubleshooting](https://qwen.readthedocs.io/en/v2.0/inference/chat.html#troubleshooting):
+  cảnh báo float16 có thể gây mất ổn định số và lặp dấu chấm than. Đây là căn cứ
+  cho hướng sửa, chưa có logits/GPU để chứng minh nguyên nhân numerical.
+- Bản sửa Qwen2.5 bỏ phạt lặp thêm ở lượt trước, chuyển compute và các phần
+  không lượng tử sang float32; weights vẫn NF4 4-bit. Runner dùng precision
+  từ config thay vì hardcode fp16, snapshot/plan lưu cấu hình mới. Qwen3 giữ
+  mặc định fp16 và notebook đang chạy giữ nguyên.
+- Chưa chạy GPU cấu hình mới. Hai lượt Qwen2.5 đã dùng hết trần cũ; không tự
+  khởi chạy lượt thứ ba hay coi test offline là bằng chứng model hết lỗi.
+- Main kiểm 26 test offline đạt, 1 test Qwen3 bỏ riêng: notebook Qwen3 giữ
+  source runner cũ và execution count khi đang chạy, nên không bằng refresh
+  source mới. Qwen2.5 syntax/bootstrap/readback đạt; mock test xác nhận dtype
+  fp16/fp32 truyền đúng cho quantizer/model load và snapshot/plan đổi.
+
 
 ## Sửa lần chạy Qwen2.5 bị lặp — 14/10/2026
 

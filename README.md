@@ -1,11 +1,31 @@
 # Novel Translate
 
-Ứng dụng cá nhân EN → VI, dữ liệu và SQLite ở máy local; Colab xử lý batch
-theo phiên ở giai đoạn sau. Ngân sách đã chốt: **0 đồng**.
+Ứng dụng cá nhân EN → VI, dữ liệu và SQLite ở máy local; Colab nhận/trả batch
+bằng file theo phiên. Ngân sách đã chốt: **0 đồng**.
 
 Bản đầu P1 hỗ trợ TXT với **provider giả**, dùng để kiểm tra luồng nhập,
 checkpoint, review và xuất. Nội dung có nhãn `FAKE`, không phải bản dịch thật.
-Đã có [CLI nhập EPUB local](docs/EPUB_IMPORT.md); chưa có EPUB export, provider thật trong app, crawler hoặc kết quả benchmark chất lượng. Notebook đã lưu GPUcheck Tesla T4, chưa có bằng chứng model đã chạy. Đã chuẩn bị [notebook P0](notebooks/p0_benchmark.ipynb) tự chứa mã, chỉ cần corpus riêng trên Drive; chưa chạy model. Hai bản local nằm cùng thư mục `notebooks/`: [Qwen3](notebooks/p0_benchmark.ipynb) và [Qwen2.5](notebooks/p0_qwen25_benchmark.ipynb). Có thể mở file local trong VS Code, nhưng phải chọn Colab hosted GPU kernel hoặc mở trên Colab; mỗi runtime chạy một model. Nguồn mới người dùng chọn cho P0 là [Reformation of the Deadbeat Noble trên FreeWebNovel](https://freewebnovel.com/novel/reformation-of-the-deadbeat-noble), nhưng chưa xác minh được mục lục hay đối chiếu với hai TXT mẫu hiện có. Hai TXT được cung cấp có provenance Webnovel và theo thứ tự chương 1–5 **có Prologue**; đã đủ năm TXT, chưa chứng minh quyền dùng nguồn; ch03–ch05 chưa xác minh URL và khác cách viết tên.
+Đã có [CLI nhập EPUB local](docs/EPUB_IMPORT.md) và offline v2 batch/runner local.
+V2 mới được kiểm tra bằng tokenizer/generation giả; chưa nối UI, review/export hay
+có lần chạy tokenizer/model/GPU thật;
+P0 notebook vẫn là pipeline benchmark riêng. Xem [hướng dẫn batch v2](docs/REAL_BATCH.md).
+Qwen2.5 đã có lượt dừng `max_tokens`/lặp và lượt FP32 OOM khi nạp; chưa có
+benchmark hoàn tất hoặc go/no-go. Chờ baseline dịch tay và bằng chứng lượt mới
+trước khi xem output, không mở GPU session khác khi chưa chốt riêng. Đã chuẩn bị
+[notebook P0](notebooks/p0_benchmark.ipynb) tự chứa mã, dùng corpus riêng trên
+Drive. Ba bản local nằm cùng thư mục `notebooks/`: [Qwen3](notebooks/p0_benchmark.ipynb),
+[Qwen2.5](notebooks/p0_qwen25_benchmark.ipynb) và
+[Qwen3.5-4B](notebooks/p0_qwen35_benchmark.ipynb). Bản Qwen3.5 dùng NF4 4-bit,
+float16, batch 1, context 4.096, tắt thinking và mặc định thử một chunk
+(`LIMIT=1`); đặt `LIMIT=None` để chạy hết các chunk còn lại sau khi kiểm tra.
+Chưa kiểm chứng cấu hình mới trên GPU Colab. Có thể mở file local trong
+VS Code, nhưng phải chọn Colab hosted GPU kernel hoặc mở trên Colab; mỗi runtime
+chạy một model. Nguồn mới người dùng chọn cho P0 là [Reformation of the Deadbeat
+Noble trên FreeWebNovel](https://freewebnovel.com/novel/reformation-of-the-deadbeat-noble),
+nhưng chưa xác minh được mục lục hay đối chiếu với hai TXT mẫu hiện có. Hai TXT
+được cung cấp có provenance Webnovel và theo thứ tự chương 1–5 **có Prologue**;
+đã đủ năm TXT, chưa chứng minh quyền dùng nguồn; ch03–ch05 chưa xác minh URL và
+khác cách viết tên.
 
 ## Chạy local
 
@@ -51,6 +71,13 @@ Giữ EPUB gốc, parse thứ tự spine, lưu text chương trong SQLite cùng 
 XHTML riêng; import trùng không nhân sách. Không tạo job/dịch tự động. Xem
 [luồng EPUB và Colab](docs/EPUB_IMPORT.md); upload UI hiện vẫn chỉ nhận TXT.
 
+## Batch provider thật offline
+
+CLI `scripts/real_batch.py` có `export`, `import` và `status` cho schema v2.
+SQLite ở máy local; Colab chỉ nhận manifest/mã runner và trả từng result JSON.
+CLI chưa mount Drive, điều phối phiên Colab hay đưa kết quả vào UI P1. Xem
+[các bước batch v2 và giới hạn](docs/REAL_BATCH.md).
+
 ## Kiểm tra
 
 ```bash
@@ -68,11 +95,12 @@ Phiên mới đọc [AGENTS.md](AGENTS.md) → [WORKFLOW](docs/WORKFLOW.md) →
 - [Kế hoạch và hợp đồng dữ liệu](docs/PLAN.md)
 - [Roadmap và cổng kiểm chứng](docs/ROADMAP.md)
 - [Hướng dẫn và phiếu benchmark P0 chưa chạy](docs/P0_BENCHMARK.md)
-- [Hai ứng viên model P0](docs/P0_MODELS.md)
+- [Cấu hình các ứng viên model P0](docs/P0_MODELS.md)
 - [Tổng quan](docs/PROJECT_KNOWLEDGE.md)
 - [Workflow](docs/WORKFLOW.md) và [quy tắc agent](AGENTS.md)
 
-P0 có hai ứng viên và người dùng review; tiêu chí văn phong và giới hạn thử nghiệm
+P0 có hai ứng viên ban đầu và notebook Qwen3.5-4B bổ sung; người dùng review.
+Tiêu chí văn phong và giới hạn thử nghiệm
 đã chốt ngày 14/10/2026. Đã đủ năm TXT và chuẩn bị corpus full; còn xác minh quyền nguồn và
 baseline trước khi đọc/chấm output. Playwright gặp Cloudflare security verification ở
 cả Webnovel và FreeWebNovel, nên chưa xác minh TOC hay đối chiếu nguồn mới. Output GPUcheck đã lưu ghi Tesla T4; chưa xác nhận runtime hiện tại, quota,

@@ -13,7 +13,7 @@ chưa được Codex tự khám phá như skill đã cài.
 
 - Main giữ model người dùng đã chọn; chỉ phân tích phạm vi, chốt thiết kế/hợp đồng,
   chia việc, tích hợp và kiểm chứng cuối. Giao phần triển khai cho worker.
-- Worker ưu tiên `gpt-6.1-sol`, reasoning `low` (ý nghĩa của “light”). Không dùng
+- Worker ưu tiên `gpt-6-luna`, reasoning `low` (ý nghĩa của “light”). Không dùng
   `light` làm tên model. Không tự đổi model nếu runtime không hỗ trợ; báo main.
 - Tối đa hai worker đồng thời; mỗi file chỉ có một owner. Không tạo worker lồng
   nhau, reviewer trùng việc hoặc worker chỉ để theo dõi worker khác.

@@ -3,12 +3,17 @@ import base64
 import binascii
 import os
 import secrets
+import shlex
+import shutil
+import tempfile
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
-from fastapi.responses import PlainTextResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse, Response
+from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -18,6 +23,8 @@ from app.core import DomainError, Store
 
 MAX_FILE = 1024 * 1024
 MAX_BODY = 5 * 1024 * 1024
+MAX_BACKUP_UPLOAD = 64 * 1024 * 1024
+MAX_BACKUP_BODY = 65 * 1024 * 1024
 HERE = Path(__file__).parent
 
 
@@ -44,14 +51,15 @@ class LocalBoundary:
             origin = headers.get(b'origin')
             if (origin and origin.decode('latin1') != f"{scope['scheme']}://{host}") or headers.get(b'sec-fetch-site') == b'cross-site':
                 return await PlainTextResponse('Yêu cầu khác nguồn bị chặn.', 403)(scope, receive, send)
+        body_limit = MAX_BACKUP_BODY if scope['method'] == 'POST' and scope.get('path') == '/backups/restore' else MAX_BODY
         body = bytearray()
         while True:
             message = await receive()
             if message['type'] == 'http.disconnect':
                 return
             body.extend(message.get('body', b''))
-            if len(body) > MAX_BODY:
-                return await PlainTextResponse('Tệp hoặc biểu mẫu quá lớn (tối đa 5 MiB).', 413)(scope, receive, send)
+            if len(body) > body_limit:
+                return await PlainTextResponse('Tệp hoặc biểu mẫu vượt giới hạn cho phép.', 413)(scope, receive, send)
             if not message.get('more_body', False):
                 break
         replayed = False
@@ -85,22 +93,65 @@ def create_app(data_dir: Path | None = None):
         response.status_code = exc.status_code
         return response
 
-    async def form(request):
-        data = await request.form(max_files=1, max_fields=1000, max_part_size=MAX_BODY)
+    async def form(request, max_files=1, max_part_size=MAX_BODY):
+        data = await request.form(max_files=max_files, max_fields=1000, max_part_size=max_part_size)
         token = data.get('csrf', '')
         if not isinstance(token, str) or not secrets.compare_digest(token, app.state.csrf):
+            await data.close()
             raise DomainError('Biểu mẫu hết hạn hoặc thiếu mã CSRF. Tải lại trang.', 403)
         return data
 
-    async def upload(data):
+    async def upload(data, limit=MAX_FILE):
         item = data.get('file')
         if not isinstance(item, UploadFile):
             raise DomainError('Hãy chọn một tệp.')
-        raw = await item.read(MAX_FILE + 1)
-        await item.close()
-        if len(raw) > MAX_FILE:
-            raise DomainError('Tệp vượt giới hạn 1 MiB.', 413)
+        try:
+            raw = await item.read(limit + 1)
+        finally:
+            await item.close()
+        if len(raw) > limit:
+            raise DomainError('Tệp vượt giới hạn cho phép.', 413)
         return raw
+
+    @app.get('/backups')
+    async def backups_page(request: Request):
+        return page(request, 'backups.html', restored_path=None, startup_command=None,
+                    backup_limit_mb=MAX_BACKUP_UPLOAD // (1024 * 1024))
+
+    @app.post('/backups/create')
+    async def create_backup_route(request: Request):
+        from app.backups import create_backup
+        data = await form(request)
+        temp_dir = tempfile.mkdtemp(prefix='novel-backup-download-')
+        output = Path(temp_dir) / f'novel-translate-{uuid.uuid4().hex}.zip'
+        try:
+            await run_in_threadpool(create_backup, app.state.store.data_dir, output)
+        except Exception:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            raise
+        return FileResponse(output, media_type='application/zip', filename='novel-translate-backup.zip',
+                            background=BackgroundTask(shutil.rmtree, temp_dir, ignore_errors=True))
+
+    @app.post('/backups/restore')
+    async def restore_backup_route(request: Request):
+        from app.backups import restore_backup
+        data = await form(request, max_part_size=MAX_BACKUP_UPLOAD)
+        raw = await upload(data, MAX_BACKUP_UPLOAD)
+        current = Path(app.state.store.data_dir).resolve()
+        name = current.name or 'library'
+        target = current.with_name(f'{name}-restored-{uuid.uuid4().hex[:12]}')
+        descriptor, temporary = tempfile.mkstemp(prefix='novel-backup-upload-', suffix='.zip')
+        try:
+            with os.fdopen(descriptor, 'wb') as stream:
+                stream.write(raw)
+                stream.flush()
+                os.fsync(stream.fileno())
+            await run_in_threadpool(restore_backup, Path(temporary), target)
+        finally:
+            Path(temporary).unlink(missing_ok=True)
+        command = 'NOVEL_DATA_DIR=' + shlex.quote(str(target)) + ' .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000'
+        return page(request, 'backups.html', restored_path=str(target), startup_command=command,
+                    backup_limit_mb=MAX_BACKUP_UPLOAD // (1024 * 1024))
 
     @app.get('/')
     async def index(request: Request):

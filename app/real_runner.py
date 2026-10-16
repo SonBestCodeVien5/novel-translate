@@ -20,7 +20,9 @@ def _atomic_write(path, raw):
         warnings.warn('Directory fsync is unsupported; published bytes passed readback, remote durability is unverified.', RuntimeWarning)
 
 
-def run_manifest(manifest, output_dir, generate):
+def run_manifest(manifest, output_dir, generate, limit=None):
+    if limit is not None and (type(limit) is not int or limit < 1):
+        raise real.DomainError('Chunk limit must be a positive integer or None.')
     real.validate_manifest(manifest)
     output_dir = Path(output_dir)
     manifest_path = output_dir / 'manifest.json'
@@ -70,6 +72,8 @@ def run_manifest(manifest, output_dir, generate):
         result = real.make_result(manifest, chunk, generated, started, real.now())
         _atomic_write(output_dir / (chunk['chunk_id'] + '.json'), real.canonical_bytes(result))
         produced += 1
+        if limit is not None and produced >= limit:
+            break
     return {'completed': len(completed) + produced, 'total': len(manifest['chunks'])}
 
 
@@ -87,14 +91,28 @@ def huggingface_generate(manifest, chunk):
     snap = manifest['snapshot']
     if not torch.cuda.is_available():
         raise real.DomainError('A CUDA GPU is required; CPU fallback is disabled.')
-    cache_key = real.digest(snap)
+    model_key = real.digest({'model_id': snap['model_id'], 'model_revision': snap['model_revision'],
+                             'quantization': snap['quantization'],
+                             'attention_implementation': snap['parameters']['attention_implementation'],
+                             'loader': ('qwen35-text-key-mapping-v1' if snap['model_id'] == real.QWEN35 else 'auto')})
+    tokenizer_key = real.digest({'tokenizer_id': snap['tokenizer_id'],
+                                 'tokenizer_revision': snap['tokenizer_revision'],
+                                 'template': snap['template'],
+                                 'chat_template_kwargs': snap.get('chat_template_kwargs', {})})
     cached = getattr(huggingface_generate, '_cache', None)
-    if cached is None or cached[0] != cache_key:
+    same_model = cached is not None and cached[0] == model_key
+    same_tokenizer = same_model and cached[1] == tokenizer_key
+    if not same_tokenizer:
         tokenizer, tokenizer_commit = real.load_tokenizer(snap['tokenizer_id'], snap['tokenizer_revision'])
         if getattr(tokenizer, 'chat_template', None) != snap['template']:
             raise real.DomainError('Loaded tokenizer template differs from frozen snapshot.')
         if tokenizer_commit != snap['tokenizer_revision']:
             raise real.DomainError('Loaded tokenizer commit does not match snapshot.')
+    else:
+        tokenizer = cached[2]
+    if same_model:
+        model = cached[3]
+    else:
         ids = real._token_ids(tokenizer, chunk['source_text'], snap)
         if ids != chunk['input_ids']:
             raise real.DomainError('Loaded tokenizer input IDs differ from frozen batch.')
@@ -133,12 +151,10 @@ def huggingface_generate(manifest, chunk):
         model_config = getattr(model.config, 'text_config', model.config)
         if getattr(model_config, 'max_position_embeddings', 0) < real.TOTAL_TOKENS:
             raise real.DomainError('Pinned model context is below the frozen total token budget.')
-        huggingface_generate._cache = (cache_key, tokenizer, model)
-    else:
-        _, tokenizer, model = cached
-        ids = real._token_ids(tokenizer, chunk['source_text'], snap)
-        if ids != chunk['input_ids']:
-            raise real.DomainError('Loaded tokenizer input IDs differ from frozen batch.')
+    ids = real._token_ids(tokenizer, chunk['source_text'], snap)
+    if ids != chunk['input_ids']:
+        raise real.DomainError('Loaded tokenizer input IDs differ from frozen batch.')
+    huggingface_generate._cache = (model_key, tokenizer_key, tokenizer, model)
     model_config = getattr(model.config, 'text_config', model.config)
     if getattr(model_config, 'max_position_embeddings', 0) < real.TOTAL_TOKENS:
         raise real.DomainError('Pinned model context is below the frozen total token budget.')
@@ -164,7 +180,10 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('manifest', type=Path)
     parser.add_argument('output_dir', type=Path)
+    parser.add_argument('--limit', type=int, help='Stop after this many new completed chunks')
     args = parser.parse_args(argv)
+    if args.limit is not None and args.limit < 1:
+        parser.error('--limit must be a positive integer')
     try:
         with args.manifest.open('rb') as stream:
             raw = stream.read(bundles.MAX_BYTES + 1)
@@ -178,7 +197,8 @@ def main(argv=None):
         drive_root = content_root / 'drive' / 'MyDrive'
         if not drive_root.is_dir() or not args.output_dir.resolve().is_relative_to(drive_root.resolve()):
             parser.error('On Colab, output must be under mounted /content/drive/MyDrive')
-    run_manifest(manifest, args.output_dir, huggingface_generate)
+    print(json.dumps(run_manifest(manifest, args.output_dir, huggingface_generate, limit=args.limit),
+                     separators=(',', ':')))
 
 
 if __name__ == '__main__':

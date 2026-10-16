@@ -50,6 +50,24 @@ def test_interrupt_then_resume_only_generates_missing_chunks(tmp_path):
     assert run_manifest(m, tmp_path, lambda *_: pytest.fail('completed batch called generator'))['completed'] == len(m['chunks'])
 
 
+def test_limit_stops_after_new_checkpoint_and_resume_keeps_existing_bytes(tmp_path):
+    m = manifest()
+    calls = []
+    first = run_manifest(m, tmp_path, lambda b, c: calls.append(c['chunk_id']) or generated(b), limit=1)
+    assert first == {'completed': 1, 'total': len(m['chunks'])}
+    assert len(calls) == 1
+    chunk_path = tmp_path / (calls[0] + '.json')
+    saved = chunk_path.read_bytes()
+    next_calls = []
+    second = run_manifest(m, tmp_path, lambda b, c: next_calls.append(c['chunk_id']) or generated(b), limit=1)
+    assert second == {'completed': 2, 'total': len(m['chunks'])}
+    assert len(next_calls) == 1 and next_calls[0] != calls[0]
+    assert chunk_path.read_bytes() == saved
+    for invalid in (0, -1, True):
+        with pytest.raises(real.DomainError):
+            run_manifest(m, tmp_path, lambda *_: pytest.fail('invalid limit ran'), limit=invalid)
+
+
 @pytest.mark.parametrize('bad_file', ['partial', 'corrupt', 'mismatch'])
 def test_bad_checkpoint_stops_before_generation(tmp_path, bad_file):
     m = manifest()
@@ -133,7 +151,7 @@ def test_cli_allows_local_cuda_environment_outside_colab(tmp_path, monkeypatch):
     from app import real_runner
     called = []
     monkeypatch.setattr(Path, 'exists', lambda self: False)
-    monkeypatch.setattr(real_runner, 'run_manifest', lambda *args: called.append(args))
+    monkeypatch.setattr(real_runner, 'run_manifest', lambda *args, **kwargs: called.append((args, kwargs)))
     main([str(path), str(tmp_path / 'output')])
     assert len(called) == 1
 
@@ -197,8 +215,9 @@ def _hf_mocks(monkeypatch, m, ids=None, tokenizer_commit=None, model_commit=None
     torch.manual_seed = lambda seed: None
     torch.inference_mode = lambda: _inference_mode(state)
     monkeypatch.setitem(sys.modules, 'torch', torch)
-    if hasattr(huggingface_generate, '_cache'):
-        del huggingface_generate._cache
+    for name in ('_cache',):
+        if hasattr(huggingface_generate, name):
+            delattr(huggingface_generate, name)
     return state
 
 
@@ -240,7 +259,6 @@ def test_qwen35_loading_uses_pinned_text_loader_and_mapping_ids(monkeypatch, tmp
     assert state['kwargs']['attn_implementation'] == 'sdpa'
     assert state['kwargs']['key_mapping'] == {r'^model\.language_model\.': 'model.'}
     assert state['kwargs']['output_loading_info'] is True
-
     del huggingface_generate._cache
     hubutils.extract_commit_hash = lambda *a, **kw: 'wrong-revision'
     with pytest.raises(real.DomainError):
@@ -261,6 +279,32 @@ def test_qwen35_loading_uses_pinned_text_loader_and_mapping_ids(monkeypatch, tmp
     with pytest.raises(real.DomainError, match='did not load completely'):
         huggingface_generate(m, m['chunks'][0])
     assert state['loads'] == 3 and not hasattr(huggingface_generate, '_cache')
+
+
+def test_reuses_weights_when_only_glossary_snapshot_changes(monkeypatch):
+    import copy
+    m = manifest('Qwen/Qwen3-4B-Instruct-2507')
+    state = _hf_mocks(monkeypatch, m, eos_ids=(99,))
+    assert huggingface_generate(m, m['chunks'][0])['finish_reason'] == 'eos'
+    changed = copy.deepcopy(m)
+    snap = changed['snapshot']
+    snap['glossary'] = {'revision': 1, 'entries': [
+        {'term': 'moon', 'translation': 'trăng', 'aliases': [], 'notes': ''}]}
+    snap['glossary_hash'] = real.digest(snap['glossary'])
+    for chunk in changed['chunks']:
+        chunk['expected_input_hash'] = real._input_hash(chunk, snap)
+    real.validate_manifest(changed)
+    assert huggingface_generate(changed, changed['chunks'][0])['finish_reason'] == 'eos'
+    assert state['model_loads'] == 1
+
+
+def test_unsupported_model_revision_still_fails_manifest_validation():
+    import copy
+    m = manifest(real.QWEN35)
+    m = copy.deepcopy(m)
+    m['snapshot']['model_revision'] = 'not-a-pinned-revision'
+    with pytest.raises(real.DomainError, match='Unsupported or unpinned'):
+        real.validate_manifest(m)
 
 
 def test_huggingface_adapter_uses_pinned_fp32_cuda_and_inference_mode(monkeypatch):

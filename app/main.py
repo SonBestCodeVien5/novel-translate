@@ -24,9 +24,9 @@ from app.core import DomainError, Store
 MAX_FILE = 1024 * 1024
 MAX_BODY = 5 * 1024 * 1024
 MAX_BULK_BODY = 32 * 1024 * 1024
+MAX_EPUB_BODY = 65 * 1024 * 1024
 MAX_BACKUP_UPLOAD = 64 * 1024 * 1024
 MAX_BACKUP_BODY = 65 * 1024 * 1024
-MAX_EPUB_BODY = 65 * 1024 * 1024
 HERE = Path(__file__).parent
 
 
@@ -53,7 +53,10 @@ class LocalBoundary:
             origin = headers.get(b'origin')
             if (origin and origin.decode('latin1') != f"{scope['scheme']}://{host}") or headers.get(b'sec-fetch-site') == b'cross-site':
                 return await PlainTextResponse('Yêu cầu khác nguồn bị chặn.', 403)(scope, receive, send)
-        body_limit = MAX_BULK_BODY if scope['method'] == 'POST' and scope.get('path', '').endswith('/results/bulk') else (MAX_BACKUP_BODY if scope['method'] == 'POST' and scope.get('path') == '/backups/restore' else (MAX_EPUB_BODY if scope['method'] == 'POST' and scope.get('path') == '/books/epub' else MAX_BODY))
+        path = scope.get('path', '')
+        body_limit = MAX_BULK_BODY if scope['method'] == 'POST' and path.endswith('/results/bulk') else (
+            MAX_EPUB_BODY if scope['method'] == 'POST' and path == '/books/epub' else (
+                MAX_BACKUP_BODY if scope['method'] == 'POST' and path == '/backups/restore' else MAX_BODY))
         body = bytearray()
         while True:
             message = await receive()
@@ -115,6 +118,10 @@ def create_app(data_dir: Path | None = None):
             raise DomainError('Tệp vượt giới hạn cho phép.', 413)
         return raw
 
+    @app.get('/')
+    async def index(request: Request):
+        return page(request, 'index.html', books=app.state.store.list_books())
+
     @app.get('/backups')
     async def backups_page(request: Request):
         return page(request, 'backups.html', restored_path=None, startup_command=None,
@@ -154,10 +161,6 @@ def create_app(data_dir: Path | None = None):
         command = 'NOVEL_DATA_DIR=' + shlex.quote(str(target)) + ' .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000'
         return page(request, 'backups.html', restored_path=str(target), startup_command=command,
                     backup_limit_mb=MAX_BACKUP_UPLOAD // (1024 * 1024))
-
-    @app.get('/')
-    async def index(request: Request):
-        return page(request, 'index.html', books=app.state.store.list_books())
 
     @app.post('/books/epub')
     async def import_epub(request: Request):
@@ -326,11 +329,33 @@ def create_app(data_dir: Path | None = None):
                     review_filter == 'unreviewed' and result is not None and not approved or
                     review_filter == 'approved' and approved)
         job['chunks'] = [item for item in job['chunks'] if item['chunk']['chapter_ordinal'] == chapter and matches(item)]
+        from app.colab_control import available_sessions, status_job
+        aliases = available_sessions(app.state.store.data_dir)
+        colab_status = status_job(app.state.store.data_dir, job_id)
         return page(request, 'real_job.html', book=app.state.store.get_book(book_id),
                     glossary=app.state.store.get_glossary(book_id), job=job, chapters=chapters,
                     chapter=chapter, review_filter=review_filter,
+                    colab_aliases=aliases, colab_status=colab_status,
                     previous_chapter=chapters[chapters.index(chapter) - 1] if chapter != chapters[0] else None,
                     next_chapter=chapters[chapters.index(chapter) + 1] if chapter != chapters[-1] else None)
+
+    @app.post('/books/{book_id}/real-jobs/{job_id}/colab')
+    async def start_colab_job(request: Request, book_id: str, job_id: str):
+        data = await form(request)
+        own_real_job(book_id, job_id)
+        from app.colab_control import ColabControlError, start_job
+        alias = str(data.get('session', ''))
+        raw_limit = str(data.get('limit', '1')).strip()
+        try:
+            limit = int(raw_limit) if raw_limit else None
+            if limit is not None and limit < 1:
+                raise ValueError
+            await run_in_threadpool(start_job, app.state.store.data_dir, job_id, alias, limit)
+        except ValueError:
+            raise DomainError('Giới hạn chunk phải là số nguyên dương hoặc để trống để chạy hết.')
+        except ColabControlError as exc:
+            raise DomainError(str(exc), 409)
+        return RedirectResponse(f'/books/{book_id}/real-jobs/{job_id}', 303)
 
     @app.get('/books/{book_id}/real-jobs/{job_id}/manifest')
     async def real_manifest(book_id: str, job_id: str):
@@ -405,8 +430,6 @@ def create_app(data_dir: Path | None = None):
         except ValueError:
             raise DomainError('Revision không hợp lệ.')
         approve = data.get('approved') == 'true'
-        app.state.store.save_real_revision(job_id, chunk_id, str(data.get('text', '')), revision,
-                                           str(data.get('base_result_hash', '')) or None, approve)
         try:
             chapter = int(str(data.get('chapter', '')))
         except ValueError:
@@ -417,6 +440,8 @@ def create_app(data_dir: Path | None = None):
         chapters = {chunk['chapter_ordinal'] for chunk in app.state.store.get_real_manifest(job_id)['chunks']}
         if chapter not in chapters:
             chapter = min(chapters) if chapters else 0
+        app.state.store.save_real_revision(job_id, chunk_id, str(data.get('text', '')), revision,
+                                           str(data.get('base_result_hash', '')) or None, approve)
         return RedirectResponse(f'/books/{book_id}/real-jobs/{job_id}?chapter={chapter}&filter={review_filter}#chunk-{chunk_id}', 303)
 
     @app.get('/books/{book_id}/real-jobs/{job_id}/export')

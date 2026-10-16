@@ -514,9 +514,7 @@ class Store:
             db.execute('INSERT INTO real_revisions VALUES (?,?,?,?,?,?,?)',
                        (job_id, chunk_id, base_revision + 1, text, current, int(approved), now()))
 
-    def export_real_txt(self, job_id, draft=False):
-        if type(draft) is not bool:
-            raise DomainError('Invalid draft option.')
+    def _real_export_chapters(self, job_id, draft=False):
         manifest = self.get_real_manifest(job_id)
         review = self.get_real_job(job_id)
         with self._connect() as db:
@@ -540,10 +538,21 @@ class Store:
                         missing += 1
                     text = rev['edited_text'] if rev else result['translated_text']
                     parts.append(text if valid else '[UNREVIEWED CHUNK ' + chunk['chunk_id'] + ']\n' + text)
-            chapters.append(titles[chapter_ordinal] + '\n\n' + '\n\n'.join(parts))
+            chapters.append({'ordinal': chapter_ordinal, 'title': titles[chapter_ordinal], 'text': '\n\n'.join(parts)})
         if missing and not draft:
             raise DomainError('Official export blocked: every chunk needs a current approved revision.')
-        return ('[DRAFT — missing or unreviewed chunks: ' + str(missing) + ']\n\n' if draft else '') + '\n\n'.join(chapters)
+        return chapters, missing
+
+    def export_real_txt(self, job_id, draft=False):
+        if type(draft) is not bool:
+            raise DomainError('Invalid draft option.')
+        chapters, missing = self._real_export_chapters(job_id, draft)
+        body = '\n\n'.join(chapter['title'] + '\n\n' + chapter['text'] for chapter in chapters)
+        return ('[DRAFT — missing or unreviewed chunks: ' + str(missing) + ']\n\n' if draft else '') + body
+
+    def export_real_epub(self, job_id):
+        from .epub_export import export_real_epub
+        return export_real_epub(self, job_id)
 
     def _after_real_result_insert(self, db):
         """Fault injection seam: transaction must roll back on interruption."""

@@ -25,6 +25,7 @@ MAX_FILE = 1024 * 1024
 MAX_BODY = 5 * 1024 * 1024
 MAX_BACKUP_UPLOAD = 64 * 1024 * 1024
 MAX_BACKUP_BODY = 65 * 1024 * 1024
+MAX_EPUB_BODY = 65 * 1024 * 1024
 HERE = Path(__file__).parent
 
 
@@ -51,7 +52,7 @@ class LocalBoundary:
             origin = headers.get(b'origin')
             if (origin and origin.decode('latin1') != f"{scope['scheme']}://{host}") or headers.get(b'sec-fetch-site') == b'cross-site':
                 return await PlainTextResponse('Yêu cầu khác nguồn bị chặn.', 403)(scope, receive, send)
-        body_limit = MAX_BACKUP_BODY if scope['method'] == 'POST' and scope.get('path') == '/backups/restore' else MAX_BODY
+        body_limit = MAX_BACKUP_BODY if scope['method'] == 'POST' and scope.get('path') == '/backups/restore' else (MAX_EPUB_BODY if scope['method'] == 'POST' and scope.get('path') == '/books/epub' else MAX_BODY)
         body = bytearray()
         while True:
             message = await receive()
@@ -156,6 +157,15 @@ def create_app(data_dir: Path | None = None):
     @app.get('/')
     async def index(request: Request):
         return page(request, 'index.html', books=app.state.store.list_books())
+
+    @app.post('/books/epub')
+    async def import_epub(request: Request):
+        data = await form(request)
+        from app.epub import MAX_RAW
+        raw = await upload(data, MAX_RAW)
+        title = str(data.get('title', '')).strip() or None
+        book_id = await run_in_threadpool(app.state.store.import_epub, raw, title)
+        return RedirectResponse(f'/books/{book_id}', 303)
 
     @app.post('/preview')
     async def preview(request: Request):
@@ -340,6 +350,13 @@ def create_app(data_dir: Path | None = None):
         suffix = '-draft' if draft else ''
         return Response(content, media_type='text/plain; charset=utf-8',
                         headers={'Content-Disposition': f'attachment; filename="{job_id}{suffix}.txt"'})
+
+    @app.get('/books/{book_id}/real-jobs/{job_id}/export.epub')
+    async def export_real_epub(book_id: str, job_id: str):
+        own_real_job(book_id, job_id)
+        content = await run_in_threadpool(app.state.store.export_real_epub, job_id)
+        return Response(content, media_type='application/epub+zip',
+                        headers={'Content-Disposition': f'attachment; filename="{job_id}.epub"'})
 
     @app.get('/books/{book_id}/export')
     async def export(book_id: str, draft: bool = False):

@@ -23,6 +23,7 @@ from app.core import DomainError, Store
 
 MAX_FILE = 1024 * 1024
 MAX_BODY = 5 * 1024 * 1024
+MAX_BULK_BODY = 32 * 1024 * 1024
 MAX_BACKUP_UPLOAD = 64 * 1024 * 1024
 MAX_BACKUP_BODY = 65 * 1024 * 1024
 MAX_EPUB_BODY = 65 * 1024 * 1024
@@ -52,7 +53,7 @@ class LocalBoundary:
             origin = headers.get(b'origin')
             if (origin and origin.decode('latin1') != f"{scope['scheme']}://{host}") or headers.get(b'sec-fetch-site') == b'cross-site':
                 return await PlainTextResponse('Yêu cầu khác nguồn bị chặn.', 403)(scope, receive, send)
-        body_limit = MAX_BACKUP_BODY if scope['method'] == 'POST' and scope.get('path') == '/backups/restore' else (MAX_EPUB_BODY if scope['method'] == 'POST' and scope.get('path') == '/books/epub' else MAX_BODY)
+        body_limit = MAX_BULK_BODY if scope['method'] == 'POST' and scope.get('path', '').endswith('/results/bulk') else (MAX_BACKUP_BODY if scope['method'] == 'POST' and scope.get('path') == '/backups/restore' else (MAX_EPUB_BODY if scope['method'] == 'POST' and scope.get('path') == '/books/epub' else MAX_BODY))
         body = bytearray()
         while True:
             message = await receive()
@@ -306,7 +307,30 @@ def create_app(data_dir: Path | None = None):
     @app.get('/books/{book_id}/real-jobs/{job_id}')
     async def real_review(request: Request, book_id: str, job_id: str):
         own_real_job(book_id, job_id)
-        return page(request, 'real_job.html', book=app.state.store.get_book(book_id), job=app.state.store.get_real_job(job_id), glossary=app.state.store.get_glossary(book_id))
+        job = app.state.store.get_real_job(job_id)
+        chapters = sorted({item['chunk']['chapter_ordinal'] for item in job['chunks']})
+        try:
+            chapter = int(request.query_params.get('chapter', chapters[0]))
+        except ValueError:
+            raise DomainError('Chapter ordinal không hợp lệ.')
+        if chapter not in chapters:
+            raise DomainError('Chapter ordinal không tồn tại.', 404)
+        review_filter = request.query_params.get('filter', 'all')
+        if review_filter not in {'all', 'pending', 'unreviewed', 'approved'}:
+            raise DomainError('Bộ lọc review không hợp lệ.')
+        def matches(item):
+            result, revision = item['result'], item['revision']
+            approved = bool(result and revision and revision['approved'] and not item['stale'])
+            return (review_filter == 'all' or
+                    review_filter == 'pending' and result is None or
+                    review_filter == 'unreviewed' and result is not None and not approved or
+                    review_filter == 'approved' and approved)
+        job['chunks'] = [item for item in job['chunks'] if item['chunk']['chapter_ordinal'] == chapter and matches(item)]
+        return page(request, 'real_job.html', book=app.state.store.get_book(book_id),
+                    glossary=app.state.store.get_glossary(book_id), job=job, chapters=chapters,
+                    chapter=chapter, review_filter=review_filter,
+                    previous_chapter=chapters[chapters.index(chapter) - 1] if chapter != chapters[0] else None,
+                    next_chapter=chapters[chapters.index(chapter) + 1] if chapter != chapters[-1] else None)
 
     @app.get('/books/{book_id}/real-jobs/{job_id}/manifest')
     async def real_manifest(book_id: str, job_id: str):
@@ -330,6 +354,48 @@ def create_app(data_dir: Path | None = None):
         status = app.state.store.import_real_result(raw)
         return page(request, 'error.html', message=f'Kết quả: {status}. Dữ liệu đã được kiểm tra.', success=True)
 
+    @app.post('/books/{book_id}/real-jobs/{job_id}/results/bulk')
+    async def real_results_bulk(request: Request, book_id: str, job_id: str):
+        from app.bulk_results import MAX_FILE as BULK_FILE, check_upload_total, inspect_zip
+        from app.bundles import load_json
+        data = await form(request, max_files=100, max_part_size=MAX_BULK_BODY)
+        uploads = [item for _, item in data.multi_items() if isinstance(item, UploadFile)]
+        files = []
+        try:
+            own_real_job(book_id, job_id)
+            if len(uploads) > 100:
+                raise DomainError('Tối đa 100 tệp mỗi lần upload.', 413)
+            if len(uploads) == 1 and (uploads[0].filename or '').lower().endswith('.zip'):
+                archive = await uploads[0].read(MAX_BULK_BODY + 1)
+                if len(archive) > MAX_BULK_BODY:
+                    raise DomainError('ZIP vượt giới hạn 32 MiB.', 413)
+                files = inspect_zip(archive)
+            else:
+                if any((item.filename or '').lower().endswith('.zip') for item in uploads):
+                    raise DomainError('Không thể trộn ZIP với các file result riêng.')
+                files = [(item.filename or 'result.json', await item.read(BULK_FILE + 1)) for item in uploads]
+                check_upload_total(files)
+            check_upload_total(files)
+            report = []
+            for filename, raw in files:
+                try:
+                    if len(raw) > BULK_FILE:
+                        raise DomainError('JSON vượt giới hạn 1 MiB.', 413)
+                    payload = load_json(raw)
+                    if not isinstance(payload, dict) or payload.get('job_id') != job_id:
+                        raise DomainError('Result thuộc job khác hoặc thiếu job_id.')
+                    status = app.state.store.import_real_result(raw)
+                    report.append({'filename': filename, 'status': status})
+                except DomainError as exc:
+                    report.append({'filename': filename, 'status': 'rejected', 'message': str(exc)})
+            return page(request, 'result_import.html', book=app.state.store.get_book(book_id), job_id=job_id,
+                        report=report, imported=sum(x['status'] == 'imported' for x in report),
+                        duplicates=sum(x['status'] == 'duplicate' for x in report),
+                        rejected=sum(x['status'] == 'rejected' for x in report))
+        finally:
+            for item in uploads:
+                await item.close()
+
     @app.post('/books/{book_id}/real-jobs/{job_id}/chunks/{chunk_id}')
     async def save_real(request: Request, book_id: str, job_id: str, chunk_id: str):
         data = await form(request)
@@ -341,7 +407,17 @@ def create_app(data_dir: Path | None = None):
         approve = data.get('approved') == 'true'
         app.state.store.save_real_revision(job_id, chunk_id, str(data.get('text', '')), revision,
                                            str(data.get('base_result_hash', '')) or None, approve)
-        return RedirectResponse(f'/books/{book_id}/real-jobs/{job_id}#chunk-{chunk_id}', 303)
+        try:
+            chapter = int(str(data.get('chapter', '')))
+        except ValueError:
+            chapter = 0
+        review_filter = str(data.get('filter', 'all'))
+        if review_filter not in {'all', 'pending', 'unreviewed', 'approved'}:
+            review_filter = 'all'
+        chapters = {chunk['chapter_ordinal'] for chunk in app.state.store.get_real_manifest(job_id)['chunks']}
+        if chapter not in chapters:
+            chapter = min(chapters) if chapters else 0
+        return RedirectResponse(f'/books/{book_id}/real-jobs/{job_id}?chapter={chapter}&filter={review_filter}#chunk-{chunk_id}', 303)
 
     @app.get('/books/{book_id}/real-jobs/{job_id}/export')
     async def export_real(book_id: str, job_id: str, draft: bool = False):

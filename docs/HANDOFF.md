@@ -1,6 +1,193 @@
-# Bàn giao phiên — 15/10/2026 (Asia/Bangkok)
+# Bàn giao phiên — 16/10/2026 (Asia/Bangkok)
 
 Đọc sau WORKFLOW; trạng thái mới nhất ở mục đầu, các mục sau là lịch sử.
+
+## Tạm dừng và tiếp nối phiên mới — 16/10/2026
+
+User yêu cầu cập nhật tiến độ, chốt code/docs bằng commit và push, rồi tạm dừng.
+Không còn task triển khai đang chạy; không tự mở thêm feature, crawl, benchmark,
+dịch toàn bộ sách hoặc cấp GPU trong bước bàn giao. Các mục dưới giữ bằng chứng
+chi tiết của từng lượt; câu trạng thái cũ trong lịch sử không thay mục này.
+
+### Điểm bắt đầu cho phiên mới
+
+1. Đọc `AGENTS.md` → [WORKFLOW](WORKFLOW.md) → mục này. Xem phần liên quan của
+   [PLAN](PLAN.md)/[ROADMAP](ROADMAP.md) khi chốt việc tiếp; skill pipeline nằm ở
+   `codex-setup/skills/novel-translation/SKILL.md` (staging, chưa tự cài).
+2. Giữ Qwen3.5 revision pin, EN→VI, ngân sách 0 đồng; user đã chọn model và đã
+   có dữ liệu. Tiếp tục dùng worker `gpt-6-luna/low`, tối đa hai worker, context
+   nhỏ và một owner/file. Không mở lại benchmark hay crawler.
+3. Kiểm `git status -sb`, `git log -1 --oneline` và upstream trước sửa. Code,
+   test và docs của glossary, archive P0, backup/restore, EPUB, bulk review,
+   Colab CLI/UI được chốt cùng bản bàn giao này; không chỉ có thay đổi tài liệu.
+   Không giả định app/Colab hoặc các đường dẫn `/tmp` vẫn tồn tại ở phiên mới.
+
+### Đã có và đã kiểm
+
+- App: glossary revision/snapshot; backup/restore sang thư viện riêng; EPUB
+  upload/export official theo mapping giới hạn; bulk JSON/ZIP; review theo
+  chương/bộ lọc; nút Colab dùng alias/kernel đã đăng ký. Hướng dẫn ở
+  [README](../README.md), [REAL_BATCH](REAL_BATCH.md), [COLAB_V2](COLAB_V2.md),
+  [BACKUP](BACKUP.md), [EPUB_EXPORT](EPUB_EXPORT.md).
+- Full suite gần nhất: **121 passed, 23 subtests**, 3 warnings, 22,30s; sau sửa
+  câu chữ template, `tests/test_colab_web.py tests/test_real_web.py`: **4 passed**.
+  Test archive P0 đã đạt 40 passed trước đó. Link Markdown/diff-check đạt.
+  Không chạy lại benchmark; không suy ra chất lượng từ test tích hợp.
+- Live Qwen3.5 trên T4: fixture tự tạo hai chương/hai chunk, EOS 36/34 output
+  tokens; restart kernel cùng VM rồi resume đủ2/2. Checkpoint Drive đầu không
+  đổi byte/hash; duplicate no-op, approved/pending edits được giữ. Official
+  TXT/EPUB parse roundtrip đạt. UI live đã thử thu duplicate trên job hoàn tất;
+  generation và restart được thử qua CLI, chưa qua nút UI từ job thiếu result.
+- Dữ liệu thật tại `data/`: 1 sách, 390 chương, 3.929 chunk; chưa có real job
+  hoặc bản dịch thật. App mở DB đã thêm bảng additive 6→11; số hàng cũ,
+  book/raw/source hashes giữ nguyên, integrity/FK đạt. Backup trước migration:
+  `backups/library-20261016-223738.zip`, đã thử restore trên bản riêng.
+  `data/`, backup, OAuth/alias/log và fixture sinh ra không thuộc Git/push.
+
+### Trạng thái máy và việc còn lại
+
+- Cuối lượt kiểm trước khi bàn giao, app thật chạy loopback cổng8000; server
+  fixture8766 đã dừng. Nếu app không còn chạy, dùng lệnh README với cùng `data/`,
+  không xóa DB hoặc ghi đè bằng bản restore để khởi động lại.
+- Alias private `novel-v2` ở `data/colab-cli/sessions.json`; fixture live ở
+  `/tmp/novel-live-v2`, results trên Drive dưới `MyDrive/novel-batch/<job_uuid>`.
+  Đây là vị trí chẩn đoán local, không phải artifact bền vững của repo. Không
+  tái sử dụng kernel/token/alias nếu chưa xác minh đúng assignment và idle.
+- Một lệnh CLI chẩn đoán cũ bật `--logtostderr` đã in header xác thực vào tool
+  output; user đã được thông báo. Chưa xác nhận đã thu hồi quyền/đăng nhập lại.
+  Chủ tài khoản cần xử lý trước lần dùng CLI tiếp; không bật log đó, không yêu
+  cầu gửi token/code vào chat. Script v2 đã tắt SDK logging. Không tự chấm xong
+  việc này hoặc coi credential vẫn an toàn chỉ vì app đã chạy được.
+- Chưa tự giải phóng runtime của user. Khi nghỉ, user có thể disconnect runtime
+  trong Colab để tránh dùng quota; phiên mới phải kiểm trạng thái lại. Chưa kiểm
+  mất/cấp lại VM, generation timeout live, full390 chương, native EPUB reader/
+  EPUBCheck, screen reader hoặc tốc độ/chất lượng dịch sách dài.
+
+### Thứ tự đề xuất khi user quay lại
+
+1. Hoàn tất xác thực CLI an toàn nếu cần Colab; các việc local vẫn có thể làm
+   trong lúc chờ chủ tài khoản. Không yêu cầu user lặp lại các bước đã có bằng chứng.
+2. Ưu tiên tối ưu trang sách dài: P1 đang render toàn bộ3.929 chunk; real review
+   chỉ chia trang hiển thị, backend vẫn đọc/validate full manifest. Đọc caller,
+   chốt phạm vi phân trang/tải theo chương rồi giao worker; giữ revision/export.
+3. Kiểm EPUB bằng reader chuyên dụng và keyboard/screen reader; xử lý lỗi cụ
+   thể, giữ giới hạn mapping thay vì âm thầm làm mất inline markup.
+4. Khi user muốn dịch thật, chốt một lượt nhỏ có chủ đích trước full book và
+   review chất lượng; không xem việc mở Colab trước đó là lệnh dịch390 chương.
+   Mất VM/new VM và generation timeout live còn là các phép kiểm riêng, chỉ
+   dùng runtime phù hợp được user cấp, không tự tạo VM hay retry vô hạn.
+
+## Backup/restore, EPUB, bulk review và điều phối Colab — 16/10/2026
+
+- User cho triển khai các bước tiếp theo và mở T4 để kiểm live; tiếp tục dùng hai
+  worker `gpt-6-luna/low`, không crawl/benchmark, không đổi Qwen3.5 hay dependency
+  ứng dụng. Code chưa commit. Main đã mở app thật loopback tại
+  `http://127.0.0.1:8000` (uvicorn PID 16932, tool session 6424).
+- Backup engine/UI/CLI có ZIP v1 + size/SHA inventory, SQLite backup API dưới
+  writer lock và asset allowlist; không kèm credentials/Colab state. Restore
+  kiểm schema/source/mapping/batch/result và chỉ công bố thư mục mới, không đè
+  thư viện đang chạy; Linux/WSL `renameat2` fail-closed, UI64MiB/CLI512MiB.
+  Schema v1 sáu bảng và nhóm real đầy đủ được nhận, không tự migrate khi backup.
+  Main đã backup thư viện thật vào `backups/library-20261016-223738.zip` (Git
+  ignore), thử restore/migration 6→11 bảng trên bản riêng thành công. Sau đó mở
+  app thật, thêm bảng additive và xác minh vẫn 1 book/390 chapters/3.929 chunks,
+  các bảng v1 jobs/results/revisions đều 0, nguyên book/raw/source hashes;
+  integrity/FK checks đạt. Không tạo job hoặc dịch sách thật.
+- EPUB upload web64MiB và CLI import; official EPUB dùng chung approval/base
+  result guard với TXT. TXT tạo EPUB3 mới; source EPUB thay đúng text slot khi
+  số đoạn và mapping rõ, giữ resources/spine/link/metadata. Mixed inline, lệch
+  số đoạn, resource/anchor hỏng, nội dung active hay mapping/raw lệch thì báo
+  review, không mất markup ngầm. Có tests percent-encoded package path và
+  extensionless XHTML theo media type. Native reader/EPUBCheck chưa chạy;
+  profile giới hạn rõ ở [EPUB_EXPORT](EPUB_EXPORT.md).
+- Bulk result UI nhận tối đa100 JSON hoặc một ZIP, mỗi JSON1MiB/tổng32MiB;
+  preflight ZIP trước import, report imported/duplicate/rejected từng payload,
+  giữ edits và single-result endpoint. Root `manifest.json` trong ZIP bỏ qua.
+  Review v2 hiển thị theo chương và lọc pending/unreviewed/approved; giữ bộ lọc
+  sau lưu, global progress không đổi. Backend vẫn load/validate full manifest,
+  chưa DB pagination; trang sách P1 còn render toàn bộ chunk.
+- Script `scripts/run_colab.py` và nút start/resume dùng alias T4/kernel idle
+  đã đăng ký, process lock, wall timeout, từng chunk mới chạy/import trước khi
+  tiếp tục. Resume seed result local hợp lệ khi Drive thiếu, không overwrite
+  conflict. Model cache tái dùng weights khi chỉ glossary/context đổi; module
+  code đổi yêu cầu restart rõ. UI fixed argv/no shell, process status tách khỏi
+  checkpoint, không tạo hay tự giải phóng VM. Xem [COLAB_V2](COLAB_V2.md).
+- Main chạy full suite ngoài sandbox sau sửa Contents API: **121 passed, 23 subtests**, 3 warnings
+  (Starlette/httpx deprecation có sẵn + hai ZIP duplicate fixture có chủ đích),
+  22,30 giây. CLI fixture dry-run đạt; Markdown local links/diff-check đạt.
+  Playwright: chuyển chương/lọc approved, tải official EPUB và backup, upload
+  backup để restore thành thư viện riêng đạt. Server fixture đã dừng, bản
+  restore fixture đã dọn; không coi browser download là native EPUB reader.
+- Live Colab hiện: một T4, alias private `novel-v2` đã đăng ký trong
+  `data/colab-cli/sessions.json`, kernel v2 riêng do main tạo khi VM chưa có
+  kernel; không tạo VM mới. GPU CUDA/Tesla T4 kiểm đạt, đã cài runtime pins
+  Transformers5.3.0/accelerate1.11.0/bitsandbytes0.48.2. Fixture hai chương/hai
+  chunk ở `/tmp/novel-live-v2`, tokenizer thật input123/123. Các lần user chọn
+  đã mount không thay cho phép kiểm. Google CLI
+  propagation từng HTTP400; báo cáo tương tự
+  liên quan browser active-account ở [issue #103](https://github.com/googlecolab/google-colab-cli/issues/103).
+  Sau khi user chọn đúng account, Google đã truyền quyền và main chạy lại mount
+  thành công (`Mounted at /content/drive`, phép kiểm Drive true). Không yêu cầu
+  user paste token/code. Smoke CLI đầu dừng trước generation với
+  `SOURCE_HASH_MISMATCH`: Jupyter contents root là `/`, file bị ghi ở
+  `/novel-translate-code` trong khi kernel đọc `/content/novel-translate-code`.
+  Worker đã sửa mapping bằng nonce probe, kiểm hash source trước generation và
+  bổ sung regression test. Lượt chạy lại đạt trên Qwen3.5 revision pin: chunk1
+  input123/output36/EOS, lưu Drive rồi import1/missing1; từ 23:01:09 đến
+  23:03:51 giờ Bangkok (gồm tải/load weights, không phải throughput benchmark).
+- Main restart chính kernel idle trên cùng T4, chạy tiếp `--limit 1`: import1,
+  duplicate1, missing0; chunk2 input123/output34/EOS, từ 23:04:37 đến 23:05:39
+  giờ Bangkok (gồm load lại). Đọc lại checkpoint đầu trực tiếp Drive và local
+  khớp byte SHA-256 trước restart. Approved edit đầu giữ nguyên; edit trước khi
+  nhận chunk2 cũng giữ nguyên và được đánh stale, không bị output ghi đè.
+  Import lại cả hai no-op; sau duyệt fixture, official TXT và EPUB parse
+  roundtrip hai chương đạt. Playwright click nút Colab trên job đã đủ2/2:
+  running→finished, remote completed, nhập0/trùng2/rejected0/missing0; đây là
+  UI live duplicate proof, generation/restart được chạy qua CLI.
+  Không tạo job hoặc dịch sách thật. Đây là kernel restart trên cùng VM,
+  chưa chứng minh checkpoint sau mất/cấp lại VM, quota hoặc chất lượng sách dài.
+- Lưu ý vận hành: một lượt CLI chẩn đoán bật `--logtostderr` đã in bearer header
+  vào tool output. Main đã báo user, dừng chế độ đó và khuyến nghị thu hồi quyền
+  CLI/đăng nhập lại; không ghi credential vào repo. Script v2 disable SDK logs.
+  Còn mở: mất/cấp lại VM, native EPUB reader, screen reader và tối ưu tải sách
+  dài (đặc biệt P1 book page). Server fixture live UI cổng8766 đã dừng;
+  app thật cổng8000 giữ chạy. Không tự giải phóng GPU của user.
+
+## Glossary và dọn benchmark — 16/10/2026
+
+- User yêu cầu tiếp tục hoàn thiện app, dùng worker nhẹ để tiết kiệm token;
+  đã có data nên không crawl thêm. Main giao hai worker `gpt-6-luna/low`,
+  một làm glossary và một lưu trữ benchmark. Không chạy lại benchmark/model,
+  không đổi provider Qwen3.5, không commit hay ghi vào DB/data người dùng.
+- Benchmark cũ chuyển nguyên artifact/code/notebook/test vào
+  [archive/p0](../archive/p0/README.md); active app/scripts/tests/notebooks
+  không còn import P0. Archive có hai module app trích từ notebook để test lịch
+  sử chạy độc lập; checksum 16/16 file chuyển khớp Git HEAD. Test archive đạt
+  40 passed. Docs hiện hành ưu tiên app; metrics lịch sử chưa có trong repo,
+  không suy ra chất lượng hay mở lại lựa chọn model.
+- Glossary theo sách có UI thêm/sửa/xóa thuật ngữ, bản dịch, alias và ghi chú
+  xưng hô. `book_glossaries` là bảng additive thứ 11; lưu kiểm base revision
+  trong transaction để chống hai tab ghi đè. Shared validator kiểm kiểu, tên
+  trùng, Unicode và giới hạn. Cả UI/CLI tạo real job đều đóng băng glossary
+  hiện hành vào snapshot riêng; không mutate snapshot truyền vào.
+- Planner/runner cùng đưa entries vào prompt, tính vào token budget; glossary
+  vượt budget báo lỗi trước khi tạo job/file. Sửa glossary không đổi manifest,
+  result, duyệt hoặc sửa tay job cũ; review báo khác revision và hướng dẫn tạo
+  job mới. Notebook `translate.ipynb` đã tái sinh từ mã mới.
+- Main chạy `timeout 60s .venv/bin/python -m pytest -q` ngoài sandbox: **78
+  passed, 23 subtests**, 1 warning Starlette/httpx deprecation (12,45 giây).
+  Lượt trong sandbox timeout ở web; không coi lượt đó đã đạt. Test mới kiểm
+  validation, conflict/restart, job snapshot/input thay đổi, giữ result/edit/
+  official export cũ, quá budget không tạo job/file, CSRF/XSS và stale warning.
+  Main đối chiếu code HEAD: snapshot/messages/manifest rỗng byte-compatible cho
+  cả ba profile v2; link Markdown local và `git diff --check` đạt.
+- Main dùng Playwright trên DB fixture trong `/tmp`: thêm bằng Tab/Enter,
+  sửa rồi xóa thuật ngữ, revision tăng 0→1→2→3; label/fieldset được nhận diện.
+  Server fixture đã dừng. Chưa kiểm screen reader/toàn bộ accessibility.
+- Chưa làm: EPUB export/reader, backup/restore, P2-03 live Colab v2 resume và
+  P2-04 điều phối CLI. Ưu tiên tiếp phần sử dụng app hằng ngày; crawler hoãn,
+  benchmark lưu trữ. Migration chưa thử trên DB người dùng; model/GPU v2 và
+  Drive durability vẫn chưa kiểm chứng. Hướng dẫn ở [REAL_BATCH](REAL_BATCH.md).
 
 ## Offline pipeline Qwen3.5 và review v2 — 15/10/2026
 

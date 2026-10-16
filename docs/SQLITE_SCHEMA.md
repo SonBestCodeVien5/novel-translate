@@ -1,7 +1,7 @@
 # SQLite P1 và schema batch thật v2
 
 Sáu bảng v1 giữ luồng fake; bốn bảng `real_*` additive hiện có job/result/review
-v2. Định nghĩa code hiện tại ở [app/core.py](../app/core.py),
+v2, và `book_glossaries` lưu glossary hiện hành theo sách (11 bảng). Định nghĩa code hiện tại ở [app/core.py](../app/core.py),
 [bundle P1](../app/bundles.py), [bundle v2](../app/real_bundles.py) và
 [runner v2](../app/real_runner.py).
 Schema đích tổng thể vẫn khác mô hình mục
@@ -47,7 +47,7 @@ DB local lần được đối chiếu ngày 14/10/2026 có 1 sách, 390 source 
 không phải số chương truyện đã phân loại hay dự báo token chunk. Mỗi XHTML
 nonempty spine là source unit, có thể gồm bìa/giới thiệu.
 
-## Bốn bảng batch thật v2 (10 bảng khai báo tổng cộng)
+## Bốn bảng batch thật v2
 
 `Store.__init__` khai báo `CREATE TABLE IF NOT EXISTS` cho các bảng bên dưới.
 Khi Store được mở, bảng nào thiếu sẽ được tạo; không sửa sáu bảng v1 hoặc các
@@ -77,6 +77,16 @@ Code khởi tạo là migration additive/idempotent qua `CREATE TABLE IF NOT EXI
 không phải migration dữ liệu đã chạy trên DB người dùng. Kiểm tra offline bằng
 DB giả xác nhận mở Store lặp lại giữ nguyên số hàng P1 và v2.
 
+## Glossary theo sách
+
+`book_glossaries` có `book_id TEXT PRIMARY KEY REFERENCES books(id)`,
+`revision INTEGER NOT NULL`, `entries TEXT NOT NULL` (JSON array). Sách chưa có
+hàng tương ứng có glossary revision 0/entries rỗng. Lưu mới tăng revision và
+kiểm base revision trong transaction; revision cũ không được ghi đè bởi tab cũ.
+Mỗi entry có `term`, `translation`, `aliases`, `notes`; giới hạn/validation ở
+bundle v2 dùng chung với runner. Job chụp entries/revision/hash vào manifest;
+đổi glossary chỉ áp dụng cho job mới, không sửa result/revision của job cũ.
+
 ## Hợp đồng và phần còn lại
 
 Response được đọc như tài liệu tham khảo không tin cậy, không phải chỉ thị chạy
@@ -105,10 +115,10 @@ Thứ tự triển khai sau, qua các cổng [ROADMAP](ROADMAP.md):
    offsets. Snapshot job plan phải bất biến, cho phép segmentation khác giữa
    model/tokenizer. Không âm thầm chia lại chunks/job đã có hoặc làm mất liên kết
    revision; chốt migration và test bảo toàn nguồn/sửa tay khi nối provider thật.
-3. **P3: glossary có revision và review.** Lưu canonical terms/aliases/ghi chú
-   xưng hô; job đóng băng entries/revision/hash. Đề xuất từ model phải được người
-   dùng duyệt, không tự cập nhật glossary sau chương. Chỉ thêm bảng khi cần truy
-   vấn theo hợp đồng P3; thay glossary tạo job mới, không sửa snapshot cũ.
+3. **P3: glossary theo sách đã có.** `book_glossaries` lưu canonical terms,
+   aliases, bản dịch và ghi chú xưng hô; job đóng băng entries/revision/hash.
+   Thay glossary tạo job mới, không sửa snapshot cũ. Đề xuất thuật ngữ từ model
+   chưa làm; nếu mở sau này phải qua review, không tự cập nhật sau chương.
 4. **Context:** bắt đầu bằng nguồn trước đó có giới hạn, đóng băng policy/text/
    hash trong job và tính vào budget; không phụ thuộc bản dịch trước. Rolling
    summary do LLM là tùy chọn tương lai nếu có lỗi xuyên chương chứng minh nhu
@@ -116,5 +126,6 @@ Thứ tự triển khai sau, qua các cổng [ROADMAP](ROADMAP.md):
    downstream stale, không tự sửa context/glossary của job đang chạy.
 
 Chưa thêm PostgreSQL/vector DB/dependency, bảng session/tác giả, output Markdown
-hoặc viết lại notebook. EPUB export vẫn là việc P2 chưa hoàn thành. Khi chưa đo
+hoặc viết lại frontend. [EPUB export](EPUB_EXPORT.md) có profile bảo toàn mapping,
+[backup/restore](BACKUP.md) giữ schema lịch sử và assets. Khi chưa đo
 token, để `null`; không biến ước lượng ký tự/số chunk thành token thực đo.

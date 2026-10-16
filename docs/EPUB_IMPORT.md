@@ -2,8 +2,9 @@
 
 Phạm vi nhập EPUB được mở ngày 14/10/2026. Sau đó có thêm batch v2 offline local
 cho TXT/EPUB source rows, nhưng EPUB chưa được chạy qua tokenizer/model thật.
-Không thay notebook P0; chưa có EPUB export hay điều phối Colab tự động. Chưa có
-kết quả go/no-go P0.
+Provider đã chọn là Qwen3.5; benchmark cũ được lưu tại
+[archive/p0](../archive/p0/README.md). Có [EPUB export](EPUB_EXPORT.md) theo profile
+mapping bảo toàn và [script Colab v2](COLAB_V2.md) trên phiên đã đăng ký.
 
 ## Chạy import
 
@@ -14,8 +15,9 @@ kết quả go/no-go P0.
 Có thể thêm `--title 'Tên sách'`; mặc định lấy tiêu đề từ metadata EPUB.
 Script in book ID, số source unit/chunk, không tạo translation job. Nhập cùng raw,
 parser version và cặp ngôn ngữ trả lại book đã có, giữ sửa tay. Cùng tên khác raw
-là sách mới. Giao diện upload vẫn chỉ nhận TXT; sách nhập bằng CLI có thể review
-trong app local nhưng job hiện vẫn là fake provider.
+là sách mới. Trang chủ nhận EPUB tối đa 64 MiB, tên trống lấy metadata;
+sách nhập bằng UI hoặc CLI có thể review
+trong app local và tạo real job Qwen3.5, nhập/review kết quả rồi xuất TXT theo job.
 
 Raw lưu tại `data/sources/<rawsha>.epub`, mapping tại
 `data/sources/<rawsha>.epub-spine-1.mapping.json`; DB ở `data/library.sqlite3`.
@@ -51,8 +53,8 @@ SQLite chỉ do backend local truy cập. Không upload database lên Drive ho�
 trong Colab. Batch v2 gồm ID/thứ tự, source text/hash, input IDs, prompt/glossary/
 config và model/tokenizer revision; result phải khớp batch, provenance và EOS
 trước khi nhập. Import trùng là no-op; kết quả xung đột hoặc lệch source/snapshot
-bị từ chối. P1 manual revisions vẫn được giữ, nhưng kết quả v2 chưa được chiếu
-vào UI review hay export.
+bị từ chối. P1 manual revisions được giữ riêng; kết quả v2 có trang review,
+duyệt và TXT draft/official theo job, không tự chuyển sửa tay P1 sang v2.
 
 Runner lưu từng result ra thư mục output trước khi tiếp tục. Có thể dùng thư mục
 Drive làm checkpoint ngoài VM, nhưng cách mount/copy và độ bền Drive chưa kiểm
@@ -62,15 +64,14 @@ checkpoint hợp lệ, bỏ qua result đã lưu và dịch lại chunk dở.
 ## Giới hạn đã biết
 
 Offline P2 có bundle v2, planner tokenizer, runner file-only, Store local và CLI
-export/import/status. Kiểm thử dùng tokenizer/generation giả. Chưa chạy tokenizer
-thật, tải weights, GPU, Drive hoặc Colab trên tài khoản người dùng; chưa kiểm auth,
-quota, VRAM, thời gian hoặc độ bền sync.
+export/import/status và UI review. Fixture local đã kiểm tokenizer Qwen3.5 thật
+với generation giả; chưa chạy model/GPU v2 hoặc kiểm checkpoint Drive qua ngắt/
+resume trên tài khoản người dùng. Chưa kiểm VRAM, thời gian hoặc độ bền sync.
 
-Notebook P0 hiện là runner benchmark riêng; corpus/results của nó chưa cùng schema
-bundle v2 và chưa có adapter vào SQLite. CLI `real_batch.py` không tạo phiên Colab,
-mount Drive hoặc tự chuyển file. UI P1 vẫn chỉ xử lý fake provider; kết quả v2
-chưa có flow review/export chính thức. Xem [hướng dẫn batch v2](REAL_BATCH.md).
+Notebook `notebooks/translate.ipynb` dùng manifest v2 từ app, được tải ở trang
+sách/job. Notebook P0 lưu trữ có schema riêng và không import sang v2.
+CLI `real_batch.py` không tạo phiên Colab, mount Drive hoặc tự chuyển file.
+Xem [hướng dẫn batch v2](REAL_BATCH.md).
 
-[Colab CLI chính thức](https://github.com/googlecolab/google-colab-cli) chưa được
-cài hay kiểm chứng trên WSL/tài khoản người dùng (P2-03). P2-04 tự động điều phối
-vẫn phụ thuộc cổng đó; thao tác file thủ công chưa đạt DoD P2.
+Colab CLI có extra/wrapper và script v2. Bằng chứng runtime mới nhất ở HANDOFF;
+không coi test offline là bằng chứng GPU hoặc Drive durability.

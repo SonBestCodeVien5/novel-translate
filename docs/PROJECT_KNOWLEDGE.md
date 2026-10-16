@@ -2,8 +2,11 @@
 
 ## Trạng thái và cách đọc
 
-Repo có ứng dụng local P1 và test với provider giả; đang chuẩn bị P0 bằng
-notebook tự chứa mã, chưa có provider thật trong app hoặc kết quả benchmark.
+Repo có luồng P1 giả riêng và batch/review v2 cho Qwen3.5: tạo manifest, chạy
+notebook/CLI, nhập một/nhiều result, sửa/duyệt theo chương, xuất TXT/EPUB,
+glossary theo sách và backup/restore. Live smoke T4 đã chạy fixture 2 chương/2
+chunk và resume sau restart kernel cùng VM; chưa kiểm mất VM/new VM, full 390
+chương, benchmark tốc độ/chất lượng hay native EPUB reader.
 Trạng thái vận hành mới nhất nằm ở [HANDOFF.md](HANDOFF.md). [P1.md](P1.md) ghi bằng chứng/giới hạn
 cụ thể. Nội dung bên dưới mô tả hướng thiết kế, không cam kết chất lượng.
 
@@ -28,8 +31,8 @@ thuật ngữ, tính cách và xưng hô nhất quán. Giữ bản gốc và s�
 bắt buộc; bản dịch máy luôn cần kiểm tra, nhất là thiếu đoạn hoặc sai ý.
 
 Phạm vi ban đầu là một người dùng: TXT trước, EPUB sau, glossary và review đủ
-dùng. Mục tiêu rộng hơn vẫn gồm crawler, các nguồn nhập khác và bộ nhớ xuyên
-chương, nhưng chỉ mở rộng qua các cổng trong ROADMAP.
+dùng. User đã có dữ liệu và hoãn crawling ngày 16/10/2026; tập trung hoàn thiện
+app. Các nguồn nhập khác và bộ nhớ xuyên chương chỉ mở qua ROADMAP.
 
 ## Kiến trúc đã chọn cho bản đầu
 
@@ -37,7 +40,7 @@ chương, nhưng chỉ mở rộng qua các cổng trong ROADMAP.
 Trình duyệt → FastAPI + Jinja2 → SQLite và dữ liệu sách local
                                   ↓ xuất batch bất biến
                          Drive: manifest + source + snapshots
-                                  ↓ runner CLI (sau kiểm chứng) / notebook
+                                  ↓ runner CLI trên alias có sẵn / notebook fallback
                          Colab → model → result từng chunk
                                   ↓ nhập và kiểm tra ở local
                          Review → TXT/EPUB
@@ -47,11 +50,11 @@ Máy Dell Vostro giữ giao diện, nguồn sách, database và trạng thái �
 Đã xác nhận dùng WSL; RAM, distro, Python và dung lượng chưa xác nhận. Không
 suy ra khả năng chạy model hay trần dung lượng từ tên thiết bị. Backend local là nơi duy nhất truy cập SQLite.
 
-Colab xử lý batch bằng file theo phiên, không phải backend luôn bật. P2-03 dự kiến
-kiểm chứng Colab CLI trên WSL/tài khoản thực; chỉ khi đạt mới làm script local
-P2-04 điều phối batch → phiên Colab → runner → nhận/validate/import → giải phóng
-phiên. CLI là phương án tạm chưa được thử; nếu không đạt thì ghi lý do hoãn và
-dùng notebook fallback. Hai cách dùng chung batch, validator và checkpoint;
+Colab xử lý batch bằng file, không phải backend luôn bật. CLI/UI v2 điều phối
+trên alias/kernel T4 đã đăng ký, kiểm tra assignment và trạng thái idle, không tự
+tạo hay giải phóng VM; xem [COLAB_V2](COLAB_V2.md). Live smoke fixture 2 chunk
+đã resume sau restart kernel trên cùng VM; mất VM/new VM và full book còn mở.
+Notebook vẫn là fallback. Hai cách dùng chung batch, validator và checkpoint;
 runner không mở SQLite. Drive chỉ trao đổi manifest, nguồn, snapshot và kết quả
 bất biến. Auth/permission có thể cần người dùng; secret không vào bundle/log.
 
@@ -64,16 +67,17 @@ Cấu trúc module dự kiến nằm trong PLAN; chỉ tạo module khi có mã 
 1. Import nguồn, giữ raw và hash; preview thứ tự/heading trước khi chốt chương.
 2. Chia chương thành chunk theo thứ tự, vừa context budget của model thực chạy.
 3. Xuất batch tự chứa đủ nguồn, prompt, glossary, context và cấu hình cần chạy.
-4. Runner CLI (sau kiểm chứng) hoặc notebook xác thực batch, chạy tuần tự và lưu
-   bền vững từng chunk ngoài VM (Drive/local), không chờ cuối job mới tải.
+4. Runner CLI trên alias có sẵn hoặc notebook xác thực batch, chạy tuần tự và lưu
+   từng chunk trên Drive, không chờ cuối job mới tải. Live proof hiện giới hạn ở
+   fixture 2 chunk và restart kernel cùng VM; chưa thử mất VM/new VM.
 5. Local kiểm tra và nhập result trong transaction ngắn; review rồi xuất sách.
 
 Đơn vị checkpoint là chunk, không phải cả chương. Khi runtime mất, load lại
 model, bỏ qua result đã xác thực và lưu bền vững; chunk dở phải chạy lại.
 Retry có giới hạn theo PLAN, không tự cấp GPU lại vô hạn hoặc vượt ngân sách;
-MVP ưu tiên người dùng bấm resume sau mất phiên. P3 nối script đã kiểm chứng
-vào nút Dịch/tiến độ/resume; nhận đủ result chuyển sang review, duyệt/export
-chính thức vẫn do người dùng chủ động.
+MVP ưu tiên người dùng bấm resume sau mất phiên. Nút UI hiện gọi script đã kiểm
+chứng trên alias có sẵn; nhận đủ result chuyển sang review, duyệt/export chính
+thức vẫn do người dùng chủ động.
 Không coi trạng thái “running” hoặc file vừa xuất hiện trên Drive là bằng chứng
 kết quả hoàn tất. File partial, sai checksum hoặc lệch snapshot phải được báo rõ.
 
@@ -88,37 +92,37 @@ Export theo thứ tự nguồn, ưu tiên revision đã duyệt và báo rõ ph�
 
 ## Glossary, ngữ cảnh và chất lượng
 
-Glossary lưu thuật ngữ chuẩn, aliases, bản dịch và ghi chú nhân vật/xưng hô.
+Glossary theo sách lưu thuật ngữ chuẩn, aliases, bản dịch và ghi chú nhân vật/xưng hô.
+Lưu kiểm revision để tránh hai tab ghi đè; job mới đóng băng entries/revision/hash.
+Sửa glossary không thay snapshot, result hoặc sửa tay của job cũ.
 Ví dụ giả lập: một thuật ngữ đã duyệt không nên đổi cách dịch giữa các chương.
 Xưng hô phụ thuộc cặp nhân vật và ngữ cảnh; tránh thay chuỗi toàn cục mù quáng.
 
-MVP dùng glossary và context nguồn có giới hạn, chưa dùng RAG hay vector DB.
+Hiện dùng glossary, context vẫn là `none`; context nguồn có giới hạn còn là
+hướng sau này, chưa dùng RAG hay vector DB.
 Snapshot phải chứa dữ liệu cần chạy, không chỉ hash hoặc tên revision.
 Chất lượng được đánh giá bằng review tiếng Việt và thời gian sửa thực tế;
 checker kỹ thuật không chứng minh bản dịch đã đủ ý hoặc tự nhiên.
 
-Model chưa được chọn. Hai ứng viên P0 là Qwen3-4B-Instruct-2507 và
-Qwen2.5-7B-Instruct; revision và cấu hình ở [P0_MODELS.md](../archive/p0/docs/P0_MODELS.md).
-Chưa có bảng xếp hạng chất lượng thực đo. Quyền truy cập, giấy phép, tokenizer,
-template, VRAM, context và chi phí phải xác nhận theo ứng viên và môi trường thật.
-Các liên kết tham khảo và giới hạn bằng chứng hiện có nằm ở cuối PLAN.
+User đã chọn `Qwen/Qwen3.5-4B` làm provider tích hợp. Batch/review v2 hiện có
+được mô tả ở [REAL_BATCH](REAL_BATCH.md) và [INTEGRATION](INTEGRATION.md).
+P0 benchmark là lịch sử trong [archive/p0](../archive/p0/README.md); metrics chưa
+được lưu trong repo và không phải quality gate cho việc dùng app.
 
 ## Lộ trình thực hiện
 
 | Cổng | Kết quả cần chứng minh |
 | --- | --- |
-| P0 | Benchmark 5 chương × 2 ứng viên theo tiêu chí đã chốt; chưa có kết quả |
+| P0 | Đã chốt Qwen3.5 theo user; benchmark lưu trữ, metrics chưa có trong repo |
 | P1 | TXT qua fake provider, restart/resume, import idempotent và bảo toàn sửa tay |
-| P2 | Provider thật/EPUB; kiểm chứng CLI trên WSL rồi làm script điều phối, notebook fallback và phục hồi từ checkpoint ngoài VM |
+| P2 | Provider thật/EPUB; script điều phối trên alias Colab có sẵn, notebook fallback và checkpoint ngoài VM |
 | P3 | UI Dịch/tiến độ/resume, review/glossary, conflict/revision, backup/restore và accessibility |
-| P4 | Crawler đúng một website có fixture, kiểm tra truy cập và SSRF |
+| P4 | Hoãn theo yêu cầu user, đã có dữ liệu |
 
-Bước dịch thật cần qua P0: đã có hai ứng viên, tiêu chí văn phong và trần thử
-nghiệm đã chốt, người dùng tự review; đã nhận đủ 5 TXT và upload/xác minh corpus
-full trên Drive. Còn xác minh URL ch03–ch05/quyền nguồn và hoàn thành baseline.
-Playwright gặp Cloudflare security verification nên mục lục chưa xác minh được.
-Ngôn ngữ EN → VI và ngân sách 0 đồng đã chốt. Chưa có phép đo tốc độ,
-chi phí hoặc chất lượng model.
+Provider tích hợp đã chốt Qwen3.5; không mở lại so model hay crawl để tiếp tục
+app. Ngôn ngữ EN → VI và ngân sách 0 đồng giữ nguyên. Các ngưỡng benchmark lịch
+sử chưa có metrics lưu trong repo; không suy ra hiệu quả hoặc chất lượng từ
+test pipeline offline.
 P1 có thể dùng fake provider để kiểm tra luồng dữ liệu mà không cần GPU.
 Chi tiết acceptance và exit theo ROADMAP; bảng trên chỉ tóm tắt.
 

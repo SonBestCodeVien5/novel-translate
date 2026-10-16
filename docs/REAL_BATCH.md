@@ -1,13 +1,18 @@
 # Batch dịch thật v2: local → Colab → local
 
 Đây là luồng Qwen3.5 v2 giữa app/`Store` local, file trên Google Drive và
-notebook Colab; SQLite chỉ nằm local. UI local tạo job, nhận result và review/
-duyệt; notebook là thao tác thủ công/resumable. Main đã xác minh local fixture
-end-to-end bằng tokenizer Qwen3.5 thật và generation giả. Main chạy full suite
- ngoài sandbox: `timeout 60s .venv/bin/python -m pytest -q` đạt 97 passed, 23
- subtests, 1 warning Starlette/httpx deprecation (12.15s). Chưa chạy model/GPU
-v2, và chưa xác minh độ bền Drive qua ngắt/resume.
-Colab CLI orchestration v2 chưa hoàn tất.
+runner Colab; SQLite chỉ nằm local. UI local tạo job, nhận result, review/duyệt;
+notebook là fallback thủ công/resumable, còn CLI/nút UI chạy trên alias đã đăng
+ký. Local fixture đã kiểm end-to-end bằng tokenizer thật/generation giả. Live
+smoke ngày 16/10/2026 trên T4 dùng fixture tự tạo 2 chương/2 chunk, đúng pins
+`transformers 5.3.0`, `accelerate 1.11.0`, `bitsandbytes 0.48.2`: input tokenizer
+123/123, output 36/34 token EOS. Lượt `--limit 1` nhập một result; sau restart
+kernel cùng VM, lượt tiếp nhập result hai, result một duplicate/no-op và edit
+đã duyệt cùng edit pending được giữ; checkpoint Drive đầu đọc lại byte-identical.
+Nút UI trên job hoàn tất cũng chạy và thu hai duplicate. Chưa kiểm mất VM/new VM,
+full 390 chương, hiệu năng/chất lượng hay native reader. Full suite app: 121
+passed, 23 subtests (22.30s; 3 warnings).
+Có [script Colab v2](COLAB_V2.md) cho phiên đã đăng ký; notebook vẫn là fallback.
 
 ## 1. Xuất manifest ở máy local
 
@@ -38,9 +43,17 @@ hoặc file `real-batches`.
 Job lưu source text, source offsets, token IDs, tokenizer/template, prompt,
 snapshot model, ngân sách và hashes. Chunk nhắm 768 source tokens; toàn bộ chat
 input tối đa 2.048 tokens, dành 2.048 tokens cho output trong budget 4.096.
-Glossary đang rỗng revision 0 và context là `none`. Manifest và mỗi result có
+Glossary lấy từ sách tại lúc tạo job; context là `none`. Manifest và mỗi result có
 giới hạn 16 MiB. Bundle được tạo từ toàn bộ source/chapter hiện tại; sửa source
 hoặc mapping chapter sẽ khiến import bị từ chối.
+
+Ở trang sách, mở **Glossary** để thêm/sửa tên nguồn, bản dịch, alias và ghi chú
+xưng hô. Alias nhập mỗi dòng một tên. Mỗi lần lưu tăng revision; hai tab cùng
+sửa sẽ báo conflict thay vì ghi đè. Tạo job mới sau khi chỉnh glossary để áp dụng
+thay đổi. Trang review hiển thị revision đã chụp và báo khi glossary sách đã đổi;
+job cũ vẫn dùng snapshot cũ và vẫn có thể review/xuất theo snapshot đó.
+Glossary được đưa đầy đủ vào prompt và tính vào token budget. Nếu glossary quá
+dài khiến prompt không còn chỗ cho source, tạo job báo lỗi, không cắt glossary.
 
 CLI resolve tokenizer snapshot ở revision pin rồi nạp từ thư mục local, không
 dựa vào `tokenizer.init_kwargs` để nhận diện commit. `chat_template_kwargs` là
@@ -73,16 +86,23 @@ Runner nạp revision Qwen3.5 bằng loader text-only và SDPA; đòi CUDA, ki�
 tokenizer/template/snapshot và ghi mỗi EOS result riêng. Trên Drive, runner
 yêu cầu output nằm dưới mounted `MyDrive`. Nếu runtime dừng, chạy lại cùng
 notebook/manifest/output. Đây là fallback thủ công, không phải Colab CLI orchestration.
-Runtime/Drive thật chưa được xác minh end-to-end.
+Runtime/Drive được xác minh trên fixture nhỏ như trạng thái ở đầu tài liệu;
+đây chưa phải kiểm chứng mất VM/new VM hoặc chạy toàn bộ sách.
 
 ## 3. Nhập và review trên app local
 
 Sau khi notebook hoàn tất hoặc có checkpoint cần review, tải/copy từng result
-JSON từ Drive về máy local. Trong trang job, upload từng file ở form (giới hạn
-UI 1 MiB/file). App kiểm job ID, manifest/input hash, provenance, checksum và
+JSON từ Drive về máy local. Trong trang job, upload một file hoặc chọn nhiều
+JSON/một ZIP: tối đa 100 result, mỗi JSON 1 MiB, tổng 32 MiB. App kiểm job ID, manifest/input hash, provenance, checksum và
 EOS trước khi ghi result. Có thể chạy `scripts/real_batch.py import` để nhập
 ngoài UI; mỗi lần một result. Cùng checksum là `duplicate`; payload khác cùng
 job/chunk là conflict, result cũ được giữ.
+
+ZIP được kiểm toàn bộ container trước khi nhập; từ chối đường dẫn unsafe,
+symlink, encryption, CRC lỗi và giới hạn giải nén. Không extract ZIP lên ổ đĩa;
+`manifest.json` ở root được bỏ qua. Từng payload sau đó được nhập độc lập: một
+JSON lỗi không hủy kết quả hợp lệ khác. Trang báo cáo nêu tệp đã nhập, trùng và
+bị từ chối; tải lại các tệp lỗi sau khi sửa.
 
 ```bash
 .venv/bin/python scripts/real_batch.py import --data-dir data \
@@ -104,19 +124,26 @@ manifest: `?draft=true` đánh dấu thiếu/chưa duyệt; official yêu cầu 
 revision hiện hành đã duyệt. Progress là số result đã nhập local, không phải dấu
 hiệu runtime đang chạy.
 
+Review hiển thị một chương mỗi lần, có chương trước/tiếp và bộ lọc chưa có
+result/chưa duyệt/đã duyệt. Lưu bản sửa giữ chương/bộ lọc đang xem. Backend vẫn
+validate manifest toàn job; đây là giới hạn phần hiển thị, không phải DB pagination.
+Ngoài TXT, **EPUB chính thức** dùng cùng guard đủ chunk và bản sửa hiện hành đã
+duyệt. Xem [profile EPUB bảo toàn mapping](EPUB_EXPORT.md) và
+[backup/restore DB cùng assets](BACKUP.md).
+
 ## Ranh giới hiện tại
 
 - UI giữ luồng fake v1 riêng và có trang review v2 theo job. TXT export v2 dùng
   job được chọn rõ, không lẫn revision hoặc selection với v1.
 - `real_chunks` lưu segmentation riêng theo tokenizer. Import không reanchor
   segmentation sang `chunks` P1 và không áp dụng/ghi đè revision.
-- P0 notebook có plan/session/result schema riêng, chưa có adapter sang v2.
-- Chỉ snapshot EN → VI, model/revision được hỗ trợ, glossary/context rỗng và EOS
-  completion được nhận. P0 result schema không import sang v2. Chưa có EPUB
-  export, glossary snapshot/editor, backup/restore, hoặc Colab CLI orchestration.
+- [Benchmark P0 lưu trữ](../archive/p0/README.md) có schema riêng, không nhập sang v2.
+- Chỉ snapshot EN → VI, model/revision được hỗ trợ, glossary hợp lệ/context `none` và EOS
+  completion được nhận. P0 result schema không import sang v2. EPUB export có
+  profile giới hạn, backup/restore tạo thư viện mới và Colab yêu cầu phiên đã đăng ký.
 - Local fixture dùng tokenizer thật + generation giả đã kiểm tra manifest,
-  resume, import/idempotency, late edit, approval và official TXT. GPU/model v2
-  và Colab checkpoint ngắt/resume chưa được kiểm chứng trên tài khoản thật.
-  Không claim chất lượng từ runner/integration.
-- Fixture dùng generation giả; không chứng minh inference model, GPU, mạng, auth,
-  VRAM, quota, độ bền Drive hoặc chất lượng đầu ra hoạt động.
+  resume, import/idempotency, late edit, approval và official TXT. Live smoke T4
+  nhỏ đã kiểm inference và checkpoint Drive qua restart kernel cùng VM như mô tả
+  ở đầu tài liệu. Không suy rộng thành độ bền khi mất VM, full book hay chất lượng.
+- Các fixture offline dùng generation giả; không chứng minh inference model, GPU,
+  mạng, auth, VRAM, quota, độ bền Drive hoặc chất lượng đầu ra hoạt động.

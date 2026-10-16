@@ -5,11 +5,12 @@ chọn `Qwen/Qwen3.5-4B` làm provider tích hợp ngày 15/10/2026. Báo cáo/s
 chấm chưa được lưu trong repo; không tự suy ra 25%, 18/18, đủ hai model hay
 zero critical errors. `criteria.json` còn stale (`not_run`/`decision=null`) và
 chưa được cập nhật theo xác nhận user; chưa kết luận formal P0 quality phase.
-P2 Qwen3.5 v2 có offline app flow/UI review cùng notebook Colab fallback. Local
-verification đã chạy planner thật với tokenizer Qwen3.5 pinned và generation giả
-end-to-end; chưa có GPU/model inference hoặc Drive interruption/resume thật.
-Colab CLI orchestration chưa chạy.
-EPUB import CLI có sẵn; EPUB export/glossary/backup chưa có. Xem
+P2 Qwen3.5 v2 có offline app flow/UI review, notebook fallback và CLI/UI điều
+phối trên alias T4 đã đăng ký. Live smoke trên fixture 2 chương/2 chunk đạt với
+GPU/model inference và Drive checkpoint; resume sau restart kernel cùng VM đã
+giữ checkpoint byte-identical, duplicate no-op và bản sửa tay. Chưa kiểm mất
+VM/new VM, full 390 chương, native EPUB reader hoặc chất lượng/tốc độ.
+EPUB import/export có profile giới hạn; glossary và backup/restore đã có. Xem
 [INTEGRATION](INTEGRATION.md) và [REAL_BATCH](REAL_BATCH.md).
 Lộ trình và cổng quyết định: [ROADMAP.md](ROADMAP.md).
 Bằng chứng và readiness P2/P3 nằm trong [INTEGRATION.md](INTEGRATION.md);
@@ -31,7 +32,7 @@ trong [P1.md](P1.md).
 | Quyết định | Thông tin cần có | Checkpoint |
 | --- | --- | --- |
 | Tiêu chí văn phong | Đã chốt: tiếng Việt tự nhiên, giữ giọng nhân vật và tên riêng | P0 |
-| Model và cách chạy | User chọn Qwen/Qwen3.5-4B; quyền truy cập/runtime và profile v2 cần triển khai/kiểm tra | P2/P0 |
+| Model và cách chạy | User chọn Qwen/Qwen3.5-4B; pinned profile/runtime smoke đã đạt trên fixture nhỏ; full-book, VM-loss durability và quality benchmark còn mở | P2/P0 |
 | Ngân sách | Đã chốt 0 đồng, Colab miễn phí theo phiên, tổng 4 phiên; tối đa 2 lần thử/model | P0 |
 | Máy local | Đã xác nhận WSL; cần RAM, dung lượng, distro và Python khả dụng | P0/P1 |
 | Website crawl đầu tiên | URL, quyền truy cập, cấu trúc chương | Trước P4 |
@@ -46,7 +47,7 @@ Thiếu các thông tin runtime/profile v2 không cản chuẩn bị tích hợp
 Trình duyệt → FastAPI + Jinja2 → SQLite và thư mục sách local
                                   ↓ xuất batch
                          Drive: manifest + source bất biến
-                                  ↓ runner CLI (sau kiểm chứng) / notebook
+                                  ↓ runner CLI trên alias đã đăng ký / notebook fallback
                          Phiên Colab → model
                                   ↓ ghi từng kết quả hoàn tất
                          Drive: result bất biến
@@ -58,11 +59,11 @@ Trình duyệt → FastAPI + Jinja2 → SQLite và thư mục sách local
 - Backend local là chủ sở hữu duy nhất của SQLite; runner Colab không mở DB.
 - SQLite đặt trên ổ local; Drive chỉ trao đổi file, không chứa DB dùng chung.
 - Batch là ảnh chụp đầu vào; sửa glossary/prompt tạo batch mới, không sửa batch cũ.
-- App có notebook Qwen3.5 v2 làm fallback file workflow; P2-03 kiểm chứng live Colab batch và checkpoint ngoài VM còn mở. P2-04 CLI orchestration chỉ sau P2-03.
-- Colab CLI orchestration là việc P2-04 tương lai; hiện UI tải notebook fallback và người dùng tự truyền file, không tự tạo phiên/import.
+- App có notebook Qwen3.5 v2 làm fallback file workflow và CLI/UI v2 dùng alias T4 đã đăng ký. Live smoke trên fixture 2 chương/2 chunk đạt: output 36/34 token EOS; `--limit 1`, restart kernel cùng VM rồi resume chunk hai; checkpoint Drive đầu đọc lại byte-identical, duplicate no-op và edits được giữ. Nút UI trên job hoàn tất thu hai duplicate.
+- CLI/UI không tự tạo hay giải phóng VM; cần Drive mount, pinned dependencies và kernel alias idle. Notebook vẫn cho phép thao tác file thủ công; cả hai dùng chung runner/manifest/result contract.
 - Kết quả mỗi chunk phải được lưu bền vững ngoài VM (Drive hoặc local) trước khi coi là checkpoint; không chờ cuối job mới tải.
 - Auth/permission cần người dùng khi CLI hoặc Drive yêu cầu; không đưa credential/token vào bundle hay log.
-- CLI Colab đã được cài/auth và dùng với runtime T4 cho P0; điều đó chưa kiểm chứng truyền batch v2, checkpoint ngoài VM hoặc ngắt/resume P2-03. Nếu P2-03 không đạt, ghi lý do hoãn và dùng notebook do người dùng mở/chạy. Colab không là dịch vụ luôn bật.
+- Live evidence chỉ là smoke fixture nhỏ và restart kernel trên cùng VM; không chứng minh mất VM/new VM, full-book run, quota dài hạn hoặc chất lượng dịch. Colab không là dịch vụ luôn bật.
 - Khi runtime mất: load model lại, bỏ qua result đã xác thực và lưu bền vững; dịch lại chunk dở.
 - Local ghi DB trong transaction ngắn; không giữ transaction khi chạy model hoặc chờ Drive.
 - Tác vụ local dài có trạng thái lưu DB và được tiếp tục qua thao tác rõ ràng trong UI.
@@ -91,7 +92,7 @@ Provider đầu tiên có cùng hợp đồng đầu vào/đầu ra với fake p
 
 ## 5. Dữ liệu tối thiểu và quyền sở hữu
 
-Schema SQLite code khai báo 6 bảng v1 và 4 bảng real v2; trạng thái schema
+Schema SQLite có 6 bảng v1, 4 bảng real v2 và glossary theo sách; trạng thái schema
 đích và giới hạn migration nằm ở
 [SQLITE_SCHEMA.md](SQLITE_SCHEMA.md); bảng dưới đây là hợp đồng mục tiêu,
 không phải danh sách cột hiện có.
@@ -113,6 +114,12 @@ không phải danh sách cột hiện có.
 - Revision lưu base revision/result để phát hiện hai lần sửa dựa trên cùng bản cũ.
 - Backup DB đang chạy bằng SQLite backup API hoặc consistent snapshot; không copy riêng main DB khi có WAL.
 - Backup/restore giữ DB và assets nguồn/batch nhất quán; khôi phục thử trước khi coi backup là đủ.
+- Backup ZIP v1 chụp SQLite bằng backup API dưới writer lock, kèm các thư mục
+  app sở hữu (`sources`, `batches`, `results`, `rejected`, `real-batches`,
+  `real-results`) và inventory size/SHA-256. Không kèm auth, Colab CLI state,
+  log hoặc file ngoài các thư mục này. Restore kiểm inventory, schema, foreign
+  keys và tham chiếu nguồn/batch/result; chỉ công bố vào thư mục mới chưa tồn
+  tại, không ghi đè thư viện đang mở. Bản đầu hỗ trợ atomic publish trên Linux/WSL.
 
 ## 6. State machine và thứ tự dịch
 
@@ -164,6 +171,14 @@ Schema có `schema_version`; validator từ chối version/field lạ, kiểu sa
 - Import lại cùng result là no-op; cùng job/chunk nhưng payload khác đưa vào conflict, không ghi đè.
 - Manifest/input/provenance lệch snapshot: giữ file để chẩn đoán, đánh dấu stale/rejected và yêu cầu batch đúng.
 - Glossary/prompt/source thay đổi tạo job mới; UI chỉ rõ kết quả cũ thuộc snapshot nào.
+- Glossary theo sách có revision tăng dần và tối đa 100 mục. Mỗi mục gồm `term`,
+  `translation` (tối đa 200 ký tự), `aliases` (tối đa 10 tên, mỗi tên 200 ký tự)
+  và `notes` (tối đa 1.000 ký tự). Term/alias không trùng nhau khi bỏ qua hoa
+  thường. Lưu kiểm base revision để tránh hai tab ghi đè nhau; revision 0 chỉ
+  dành cho glossary rỗng ban đầu. Job mới đóng băng toàn bộ entries/revision/hash;
+  planner và runner cùng dùng entries trong prompt và tính vào token budget.
+  Đổi glossary không hủy duyệt hay cấm xuất job cũ; UI báo khác revision để
+  người dùng chủ động tạo job mới. Snapshot rỗng cũ giữ nguyên bytes/hash/input.
 - Result đến sau sửa tay không thay revision; UI cho so sánh rồi áp dụng có chủ đích.
 - Không dùng thời gian sửa file làm bằng chứng kết quả mới hơn hoặc đúng hơn.
 
@@ -177,9 +192,21 @@ Schema có `schema_version`; validator từ chối version/field lạ, kiểu sa
 - Xưng hô lưu theo cặp nhân vật/ngữ cảnh khi cần; không thay thế chuỗi toàn cục mù quáng.
 - Thay glossary chỉ ảnh hưởng job mới; UI liệt kê chunk có thể cần dịch lại, giữ sửa tay.
 - Review hiển thị nguồn và đích, trạng thái thiếu/stale, lưu revision có kiểm tra base revision.
+- Review v2 hiển thị một chương mỗi lần, lọc thiếu result/chưa duyệt/đã duyệt;
+  tổng tiến độ vẫn tính toàn job. Đổi trang/lọc hoặc lưu không thay selection job.
+- Nhập nhiều result v2 theo job bằng nhiều JSON hoặc một ZIP: kiểm container và
+  giới hạn trước, sau đó nhập độc lập từng chunk qua validator hiện có. Báo riêng
+  imported/duplicate/rejected; một payload lỗi không làm mất chunk hợp lệ khác.
+  ZIP chỉ đọc trong bộ nhớ, không extract; không nhận file thuộc job khác.
 - TXT export theo ordinal, giữ heading đã duyệt; báo rõ chunk thiếu và yêu cầu chọn xuất nháp.
 - EPUB nhập theo spine của package, giữ mapping block/XHTML/resource, không dựa tên file.
 - EPUB xuất thay text node/block đúng mapping; giữ thứ tự spine, metadata, ảnh, link và tài nguyên.
+- Profile EPUB đầu tiên chỉ tự thay paragraph khi số đoạn nguồn/đích khớp và
+  mỗi đoạn nguồn có một text slot rõ ràng theo mapping; hỗ trợ anchor/ảnh mà
+  không đoán alignment trong đoạn có nhiều text node. Mismatch hoặc mixed inline
+  không ánh xạ chắc chắn thì từ chối, yêu cầu review/TXT. TXT source có thể xuất
+  EPUB mới theo thứ tự chương. Official EPUB dùng cùng guard duyệt hiện hành
+  như official TXT; raw EPUB luôn bất biến.
 - Escape nội dung dịch vào XHTML; kiểm tra XML/XHTML, manifest/spine và liên kết nội bộ trước xuất.
 - Chưa xử lý được một cấu trúc EPUB thì báo lỗi hoặc yêu cầu review, không xuất file có vẻ thành công.
 
@@ -215,9 +242,9 @@ Mẫu benchmark: một dòng mỗi chương/ứng viên, thêm 10 dòng trước
 - P1 kiểm thử fake provider từ TXT tới export sau restart; duplicate import không nhân dữ liệu.
 - Fault tests: crash giữa import, file thiếu bytes/checksum sai, result tới chậm/trùng/xung đột.
 - Thử sửa glossary và sửa tay trong khi job cũ đang chạy; không mất sửa tay, stale được nhận diện.
-- P2-03 kiểm chứng batch v2 trên WSL/tài khoản thực: auth, GPU/quota, truyền file, checkpoint ngoài VM và ngắt/resume. Local fixture đã chạy bằng tokenizer thật + generation giả; GPU/model và Drive resume chưa kiểm chứng.
-- P2-04 chỉ làm script điều phối sau khi CLI đạt; thử ngắt runner CLI/notebook, load lại model và resume chỉ từ result lưu bền vững.
-- P3 nối script đã kiểm chứng vào nút Dịch, tiến độ và resume; nhận đủ result thì chuyển sang review, duyệt/export chính thức vẫn do người dùng chủ động.
+- P2-03 đã smoke batch v2 trên T4: auth/GPU, truyền file, EOS, Drive checkpoint readback và resume sau restart kernel cùng VM trên fixture 2 chunk. Mất VM/new VM, full book, timeout live và benchmark còn mở.
+- P2-04 CLI/UI chạy trên alias/kernel đã đăng ký; không tạo hoặc giải phóng VM. Import per-chunk, timeout/partial behavior và resume dùng chung contract với notebook.
+- P3 UI có nút chạy/resume; result chuyển sang review, duyệt/export chính thức vẫn do người dùng chủ động.
 - EPUB fixture có spine khác tên file, ảnh, link, ký tự đặc biệt; xuất phải giữ cấu trúc hợp lệ.
 - P3 thử lưu đồng thời hai tab và hiển thị lỗi bằng bàn phím/screen reader cơ bản.
 - P4 thử redirect tới mạng nội bộ, URL ngoài site và giới hạn tải; không chỉ kiểm thử trang đẹp.
@@ -225,7 +252,7 @@ Mẫu benchmark: một dòng mỗi chương/ứng viên, thêm 10 dòng trước
 
 ## 11. Cơ sở tham khảo và giới hạn bằng chứng
 
-- [Colab CLI](https://github.com/googlecolab/google-colab-cli): đã auth và dùng với runtime T4 cho P0; chưa kiểm chứng batch v2, checkpoint ngoài VM hoặc ngắt/resume theo P2-03.
+- [Colab CLI](https://github.com/googlecolab/google-colab-cli): live smoke batch v2 đạt trên fixture 2 chunk với T4, gồm checkpoint Drive và resume sau restart kernel cùng VM; chưa kiểm mất VM/new VM hoặc full book.
 - [Colab FAQ](https://research.google.com/colaboratory/faq.html): giới hạn runtime/tài nguyên không phải cam kết always-on.
 - [SQLite qua mạng](https://sqlite.org/useovernet.html): cơ sở để DB ở local, không mở chung qua Drive.
 - [Colab VS Code](https://github.com/googlecolab/colab-vscode): tùy chọn tương tác, không biến Colab thành worker bền vững.

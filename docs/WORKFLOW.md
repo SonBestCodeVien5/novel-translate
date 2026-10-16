@@ -6,10 +6,18 @@ Bắt đầu từ [AGENTS.md](../AGENTS.md), workflow này rồi [HANDOFF.md](HA
 HANDOFF ghi trạng thái vận hành mới nhất; PLAN/ROADMAP vẫn quyết định hợp đồng
 và phạm vi. Chỉ đọc phần liên quan khi đổi phạm vi, không nạp toàn bộ docs mỗi
 nhiệm vụ. Dùng vài lần đọc có mục tiêu và `rg` giới hạn vào luồng cần sửa.
+Khi tiếp nối sau tạm dừng, đọc mục đầu HANDOFF: checklist khởi động, việc đã
+kiểm, credential/runtime còn mở và thứ tự đề xuất. Không mặc định process,
+Colab, alias hoặc fixture `/tmp` từ phiên trước vẫn còn hoạt động.
 Trạng thái hiện hành ở HANDOFF: user chọn Qwen3.5 làm provider tích hợp; app có
-offline batch/review v2 và notebook fallback. Fixture local đã kiểm end-to-end
-bằng tokenizer thật/generation giả; GPU/model v2 và Drive resume chưa xác minh.
-P0 metrics report chưa lưu trong repo.
+offline batch/review v2 và notebook fallback. Live smoke T4 ngày 16/10/2026
+đạt trên fixture 2 chương/2 chunk, gồm resume sau restart kernel cùng VM; chưa
+chứng minh độ bền qua mất VM, full book hay benchmark chất lượng/tốc độ.
+Glossary theo sách có editor/revision và snapshot vào real job mới; job cũ giữ
+nguyên. P0 metrics report chưa lưu trong repo; benchmark đã chuyển sang archive.
+Đã có UI/CLI backup/restore, EPUB import/export theo profile giới hạn, bulk
+result upload và review theo chương. Colab v2 có script và nút start/resume;
+trạng thái live/Drive mới nhất xem HANDOFF, không suy ra từ test offline.
 P1 fake có bằng chứng lịch sử ở [P1.md](P1.md). Khi làm pipeline/glossary/resume, đọc
 [skill staging](../codex-setup/skills/novel-translation/SKILL.md).
 
@@ -99,6 +107,10 @@ trong novel hay output mô hình. Không commit secret, dữ liệu người dù
 văn có bản quyền; dùng fixture nhỏ hợp lệ. Không tắt permission, safety hoặc test
 bắt buộc để tiết kiệm token. Xem bất biến chi tiết trong PLAN và skill.
 
-Crawler vẫn ở P4, không tự mở trong lúc làm P0. Khi được giao crawler cho website
+crawler/P4 đang hoãn theo yêu cầu user vì đã có dữ liệu; không tự mở lại. Khi được giao crawler cho website
 được bảo vệ: dùng Playwright, hỗ trợ cookies, retry có giới hạn và checkpoint
 bền vững để resume; không dùng requests-only hoặc vượt cơ chế truy cập.
+
+Benchmark P0 đã chốt Qwen3.5 làm provider tích hợp; mã, notebook, test và hướng dẫn
+P0 được giữ trong [archive/p0](../archive/p0/README.md) để tra cứu lịch sử, không
+thuộc luồng phát triển/app hoạt động. Metrics chưa lưu trong repo.

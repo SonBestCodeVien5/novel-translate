@@ -1,5 +1,11 @@
 # Colab CLI trong repo
 
+Luồng app hiện hành dùng [CLI/UI v2](COLAB_V2.md); alias và trạng thái gần nhất
+xem [HANDOFF](HANDOFF.md). Các alias/PID P0 bên dưới là lịch sử, không dùng để
+đoán kernel cần tiếp nối. Trước lần dùng CLI tiếp cần xử lý credential đã xuất
+hiện trong log chẩn đoán cũ; chưa có xác nhận user đã thu hồi/đăng nhập lại.
+Không bật `--logtostderr` vì CLI 0.7.4 có thể log authorization header.
+
 Dùng CLI từ [googlecolab/google-colab-cli](https://github.com/googlecolab/google-colab-cli).
 Đã chuyển phiên bản 0.7.4 vào `.venv` chung với ứng dụng theo yêu cầu người dùng.
 CLI được ghi trong extra `colab`; extra này cần Python 3.12 trở lên (ứng dụng
@@ -55,6 +61,7 @@ sessions đã xác minh, dùng `exec` để sửa/kiểm tra tokenizer và resta
 trên cùng runtime T4. Sau restart PID đổi từ 752 sang 7506, Drive còn nguyên và
 GPU allocation về 0; không cấp runtime mới.
 
-Để chạy luồng benchmark Qwen3.5 qua một lệnh trên runtime hiện có, dùng
-[script tự động Qwen3.5](../archive/p0/docs/COLAB_AUTOMATION.md). Script kiểm kernel/package/Drive,
-đồng bộ source, chạy và resume runner; không phải bấm từng cell trong VS Code.
+Script một lệnh cho benchmark Qwen3.5 đã lưu trong
+[archive P0](../archive/p0/README.md); script đó không thuộc luồng app hiện hành.
+Batch app dùng CLI/UI v2 hoặc notebook fallback theo hướng dẫn ở
+[REAL_BATCH](REAL_BATCH.md).

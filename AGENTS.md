@@ -6,9 +6,11 @@ phần liên quan của `docs/PLAN.md` và `docs/ROADMAP.md` khi quyết định
 Repo có luồng local P1 fake riêng và offline batch/review v2 cho provider
 `Qwen/Qwen3.5-4B`; xem `docs/REAL_BATCH.md` và `docs/INTEGRATION.md`. User đã
 chọn Qwen3.5 làm provider tích hợp; local fixture đã kiểm end-to-end với
-tokenizer thật/generation giả. GPU/model v2 và Colab live resume chưa được kiểm
-chứng. Báo cáo P0 metrics chưa lưu trong repo;
-xem HANDOFF cho trạng thái mới nhất.
+tokenizer thật/generation giả. Live smoke T4 trên fixture 2 chương/2 chunk đạt,
+gồm EOS outputs và resume sau restart kernel cùng VM; chưa kiểm mất VM/new VM,
+full book, native EPUB reader hoặc chất lượng. EPUB import/export giới hạn,
+glossary, backup/restore và Colab CLI/UI trên alias đã có; xem HANDOFF cho bằng
+chứng mới nhất. Báo cáo P0 metrics chưa lưu trong repo.
 Khi triển khai hoặc kiểm tra pipeline dịch, glossary, checkpoint hay import/export,
 đọc rõ `codex-setup/skills/novel-translation/SKILL.md`; đây là bản staging,
 chưa được Codex tự khám phá như skill đã cài.

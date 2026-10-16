@@ -18,10 +18,10 @@ inference và Drive interruption/resume chưa chạy. P0 quality không được
 từ khả năng tích hợp; trạng thái chấm theo xác nhận user và metrics trong repo
 được tách riêng. Các notebook P0 cũ giữ quy trình benchmark độc lập.
 Đã chuẩn bị
-[notebook P0](notebooks/p0_benchmark.ipynb) tự chứa mã, dùng corpus riêng trên
-Drive. Ba notebook P0 nằm cùng thư mục `notebooks/`: [Qwen3](notebooks/p0_benchmark.ipynb),
-[Qwen2.5](notebooks/p0_qwen25_benchmark.ipynb) và
-[Qwen3.5-4B](notebooks/p0_qwen35_benchmark.ipynb). Bản Qwen3.5 dùng NF4 4-bit,
+[notebook P0](archive/p0/notebooks/p0_benchmark.ipynb) tự chứa mã, dùng corpus riêng trên
+Drive. Ba notebook P0 nằm cùng thư mục `notebooks/`: [Qwen3](archive/p0/notebooks/p0_benchmark.ipynb),
+[Qwen2.5](archive/p0/notebooks/p0_qwen25_benchmark.ipynb) và
+[Qwen3.5-4B](archive/p0/notebooks/p0_qwen35_benchmark.ipynb). Bản Qwen3.5 dùng NF4 4-bit,
 float16, batch 1, context 4.096, tắt thinking và mặc định thử một chunk
 (`LIMIT=1`); đặt `LIMIT=None` để chạy hết các chunk còn lại sau khi kiểm tra.
 Notebook P0 hỗ trợ Run all độc lập. Batch app tải notebook Qwen3.5 riêng qua UI;
@@ -113,12 +113,12 @@ Phiên mới đọc [AGENTS.md](AGENTS.md) → [WORKFLOW](docs/WORKFLOW.md) →
 
 - [Kế hoạch và hợp đồng dữ liệu](docs/PLAN.md)
 - [Roadmap và cổng kiểm chứng](docs/ROADMAP.md)
-- [Hướng dẫn/phiếu benchmark và metrics còn thiếu P0](docs/P0_BENCHMARK.md)
-- [Decision và profile model P0](docs/P0_MODELS.md)
+- [Hướng dẫn/phiếu benchmark và metrics còn thiếu P0](archive/p0/docs/P0_BENCHMARK.md)
+- [Decision và profile model P0](archive/p0/docs/P0_MODELS.md)
 - [Tổng quan](docs/PROJECT_KNOWLEDGE.md)
 - [Workflow](docs/WORKFLOW.md) và [quy tắc agent](AGENTS.md)
 
-User đã chọn Qwen3.5 làm provider tích hợp; xem [decision/profile](docs/P0_MODELS.md).
+User đã chọn Qwen3.5 làm provider tích hợp; xem [decision/profile](archive/p0/docs/P0_MODELS.md).
 Ghi chú nguồn/provenance P0 dưới đây phản ánh giai đoạn chuẩn bị ngày 14/10.
 Sau đó user đã chọn Qwen3.5 làm provider tích hợp; metrics benchmark chưa được
 lưu trong repo. Bằng chứng và giới hạn hiện hành ở HANDOFF.

@@ -56,5 +56,5 @@ trên cùng runtime T4. Sau restart PID đổi từ 752 sang 7506, Drive còn ng
 GPU allocation về 0; không cấp runtime mới.
 
 Để chạy luồng benchmark Qwen3.5 qua một lệnh trên runtime hiện có, dùng
-[script tự động Qwen3.5](COLAB_AUTOMATION.md). Script kiểm kernel/package/Drive,
+[script tự động Qwen3.5](../archive/p0/docs/COLAB_AUTOMATION.md). Script kiểm kernel/package/Drive,
 đồng bộ source, chạy và resume runner; không phải bấm từng cell trong VS Code.

@@ -98,7 +98,7 @@ Snapshot/plan và thư mục kết quả đổi theo config; các ngân sách to
 cảnh báo float16 có thể gây mất ổn định số/lặp; đây là căn cứ thử precision,
 chưa chứng minh nguyên nhân trên phiên T4. Lượt thử cấu hình float32 sau đó OOM
 ngay khi nạp model, nên chưa có bằng chứng cấu hình này sinh ổn định hay chất
-lượng tốt hơn; xem trạng thái mới trong [HANDOFF](HANDOFF.md). Không chạy thêm
+lượng tốt hơn; xem trạng thái mới trong [HANDOFF](../../../docs/HANDOFF.md). Không chạy thêm
 lượt GPU khi chưa có quyết định riêng. Ghi khác biệt cấu hình khi so hai model.
 
 Hai notebook đều dùng NF4 4-bit và double quantization. Qwen3 dùng compute

@@ -41,7 +41,7 @@
   18/18 chunks, đủ hai model hoặc zero critical errors; không tuyên bố formal
   phase P0 quality complete. `benchmarks/p0/criteria.json` còn `not_run` và
   `decision: null`, là artifact chưa cập nhật theo thông tin user.
-- Mốc profile P0 trong [P0_MODELS](P0_MODELS.md): revision
+- Mốc profile P0 trong [P0_MODELS](../archive/p0/docs/P0_MODELS.md): revision
   `851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a`, Transformers 5.3.0,
   accelerate 1.11.0, bitsandbytes 0.48.2, NF4 double quant fp16, SDPA, batch 1,
   budgets 768/2048/2048/4096, greedy seed 0, `enable_thinking=False`. Đây là
@@ -104,7 +104,7 @@
   GPU/Drive, bootstrap source hiện tại, reload runner, snapshot và chạy toàn
   bộ chunk thiếu. `--limit 1` cho smoke; `--restart-kernel` restart cùng kernel.
   Dừng khi lỗi/needs_review, không tạo VM hoặc tự retry generation.
-  Xem [COLAB_AUTOMATION.md](COLAB_AUTOMATION.md).
+  Xem [COLAB_AUTOMATION.md](../archive/p0/docs/COLAB_AUTOMATION.md).
 - Main chạy full suite ngoài sandbox: 92 passed, 23 subtests passed, một warning
   Starlette/httpx có sẵn. Script `--dry-run`, syntax và `git diff --check` đạt.
   Main đã khởi chạy script full với `--restart-kernel` để resume sau chunk đầu;
@@ -166,7 +166,7 @@
 - Theo yêu cầu người dùng, thêm `notebooks/p0_qwen35_benchmark.ipynb` bên cạnh
   hai notebook cũ. Model `Qwen/Qwen3.5-4B`, pin revision
   `851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a`; Transformers 5.3.0,
-  accelerate 1.11.0, bitsandbytes 0.48.2. Chi tiết/nguồn ở [P0_MODELS.md](P0_MODELS.md).
+  accelerate 1.11.0, bitsandbytes 0.48.2. Chi tiết/nguồn ở [P0_MODELS.md](../archive/p0/docs/P0_MODELS.md).
 - Colab Free/T4: text-only `Qwen3_5ForCausalLM`, NF4/double quant, float16,
   SDPA, batch 1, source/input/output/context = 768/2048/2048/4096, greedy,
   seed 0, tắt thinking trong template và snapshot. Loader ánh xạ text weights,
@@ -359,7 +359,7 @@ Thông báo chặn upload dưới đây là lịch sử. Chưa inference/GPU th�
   Giữ nguyên bytes; ch03–ch05 URL chưa biết, quyền nguồn chưa xác minh.
   Ch01–ch02 dùng Airn, ch03–ch05 dùng Irene; chưa đối chiếu bản nguồn.
 - Notebook chuẩn đổi sang `MyDrive/p0/corpus.json`, `LIMIT=None`; thêm biến thể
-  Qwen2.5 riêng tại [notebooks/p0_qwen25_benchmark.ipynb](../notebooks/p0_qwen25_benchmark.ipynb). Giữ pins/revisions,
+  Qwen2.5 riêng tại [notebooks/p0_qwen25_benchmark.ipynb](../archive/p0/notebooks/p0_qwen25_benchmark.ipynb). Giữ pins/revisions,
   output riêng từng model/snapshot, không in bản dịch. Hai file local cùng thư mục
   `notebooks/`; mở trong VS Code và chọn Colab hosted GPU kernel hoặc mở trên
   Colab, không chạy bằng local kernel. Baseline làm sau sinh máy
@@ -391,12 +391,12 @@ P1.md; benchmark full/quality gate vẫn cần phân biệt với xác nhận us
 - EN → VI, ngân sách 0 đồng, Colab free theo phiên tương tác; người dùng tự review.
 - Các ứng viên P0 ban đầu là Qwen3-4B-Instruct-2507 và Qwen2.5-7B-Instruct;
   user hiện đã chọn Qwen3.5 cho tích hợp. Revision/pins lịch sử ở
-  [P0_MODELS.md](P0_MODELS.md); không đổi cấu hình đã pin âm thầm.
+  [P0_MODELS.md](../archive/p0/docs/P0_MODELS.md); không đổi cấu hình đã pin âm thầm.
 - Benchmark chính thức: 5 chương × 2 model, không bỏ đoạn, mọi chunk hoàn tất,
   zero critical sau review, tổng thời gian sinh + sửa giảm ≥25% so baseline.
 - Người dùng chốt ngày 14/10/2026: tiếng Việt tự nhiên, giữ giọng nhân vật và
   tên riêng; tối đa 2 lần thử/model, tổng 4 phiên Colab miễn phí. Đã ghi
-  [criteria.json](../benchmarks/p0/criteria.json); lịch sử chuẩn bị benchmark
+  [criteria.json](../archive/p0/benchmarks/p0/criteria.json); lịch sử chuẩn bị benchmark
   bên dưới không phản ánh xác nhận chấm/chọn mới nhất ngày 15/10/2026.
 - Baseline dịch tay cùng toàn bộ chương phải xong trước khi xem output model,
   kể cả hai chương smoke sẽ dùng lại; smoke không chứng minh chất lượng/go-no-go.
@@ -422,7 +422,7 @@ không chứng minh runtime đang sống, model đã load hay chất lượng d�
 
 ## Bước tiếp theo
 
-1. Dùng [notebook P0](../notebooks/p0_benchmark.ipynb) hiện tại trên Colab GPU,
+1. Dùng [notebook P0](../archive/p0/notebooks/p0_benchmark.ipynb) hiện tại trên Colab GPU,
    cùng tài khoản Google; người dùng bấm Run all và xác nhận auth mount Drive.
    Chưa có công cụ kết nối để agent chạy kernel Colab của người dùng.
 2. Mặc định `CORPUS=/content/drive/MyDrive/p0/corpus-smoke.json`, `LIMIT=1`.
@@ -433,7 +433,7 @@ không chứng minh runtime đang sống, model đã load hay chất lượng d�
    smoke khi phù hợp; ngắt/resume và GPU inference **chưa được kiểm thử thật**.
    Lỗi quyền/OOM/checksum/config thì dừng ghi bằng chứng, không retry vô hạn.
 4. Hoàn thiện đúng ch03–ch05, metadata/quyền nguồn, coverage chương dài và các
-   quyết định còn mở trước corpus chính thức; xem [P0_BENCHMARK.md](P0_BENCHMARK.md).
+   quyết định còn mở trước corpus chính thức; xem [P0_BENCHMARK.md](../archive/p0/docs/P0_BENCHMARK.md).
 
 ## Giữ phiên sau gọn
 

@@ -6,7 +6,7 @@ tích hợp. Repo chưa có báo cáo/số đo benchmark để ghi nhận mức 
 còn `measurements_status=not_run`, `decision=null`; đây là artifact chưa cập nhật,
 không phủ định xác nhận của user. Chưa kết luận formal P0 quality gate/phase
 đạt. Tài liệu này theo dõi triển khai hiện có và phần runtime còn lại; xem
-[P0_MODELS](P0_MODELS.md) để biết mốc profile tích hợp.
+[P0_MODELS](../archive/p0/docs/P0_MODELS.md) để biết mốc profile tích hợp.
 
 ## Readiness có bằng chứng
 

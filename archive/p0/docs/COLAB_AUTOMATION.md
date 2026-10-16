@@ -1,4 +1,8 @@
-# Chạy P0 Qwen3.5 qua CLI
+# Ghi chép lịch sử: chạy P0 Qwen3.5 qua CLI
+
+Script này thuộc benchmark P0 đã lưu trữ; không dùng cho luồng app hiện hành.
+User đã chọn Qwen3.5 làm provider tích hợp. Xem hướng dẫn batch app tại
+[`docs/REAL_BATCH.md`](../../../docs/REAL_BATCH.md).
 
 Sau khi đăng nhập `./scripts/colab` và xác nhận Google Drive trong kernel Colab
 đang dùng, chạy một lệnh từ thư mục gốc:

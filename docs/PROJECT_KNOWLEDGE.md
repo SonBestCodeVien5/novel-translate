@@ -98,7 +98,7 @@ Chất lượng được đánh giá bằng review tiếng Việt và thời gia
 checker kỹ thuật không chứng minh bản dịch đã đủ ý hoặc tự nhiên.
 
 Model chưa được chọn. Hai ứng viên P0 là Qwen3-4B-Instruct-2507 và
-Qwen2.5-7B-Instruct; revision và cấu hình ở [P0_MODELS.md](P0_MODELS.md).
+Qwen2.5-7B-Instruct; revision và cấu hình ở [P0_MODELS.md](../archive/p0/docs/P0_MODELS.md).
 Chưa có bảng xếp hạng chất lượng thực đo. Quyền truy cập, giấy phép, tokenizer,
 template, VRAM, context và chi phí phải xác nhận theo ứng viên và môi trường thật.
 Các liên kết tham khảo và giới hạn bằng chứng hiện có nằm ở cuối PLAN.

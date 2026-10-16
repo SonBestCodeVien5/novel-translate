@@ -1,4 +1,9 @@
-# Chuẩn bị benchmark P0
+# Chuẩn bị benchmark P0 (tài liệu lưu trữ)
+
+Tài liệu này ghi lại quy trình cũ, không phải hướng dẫn chạy benchmark hiện hành.
+User đã chọn Qwen3.5 làm provider tích hợp; metrics chưa được lưu trong repo.
+Không cần notebook/script trong archive để dùng app. Các trạng thái và đường dẫn
+bên dưới là ghi chép lịch sử tại thời điểm tương ứng.
 
 **Trạng thái 15/10/2026: Qwen3.5 smoke kỹ thuật đạt; full run đang chạy/resume.
 Benchmark hoàn tất/chất lượng và go/no-go chưa có.**
@@ -23,12 +28,12 @@ Cấu hình corpus full: `MyDrive/p0/corpus.json`; notebook Run all vẫn hỗ t
 script CLI là đường chạy hiện tại của Qwen3.5. Smoke `ch01-0000` đạt
 `technical_complete` (830 input/922 output tokens, EOS). Lượt full đã resume
 `1/18`; tại quan sát gần nhất hoàn tất 4/18 và đang xử lý `ch02-0001`.
-Đây là trạng thái theo thời điểm, không đảm bảo runtime vẫn hoạt động. Xem HANDOFF
+Đây là trạng thái theo thời điểm, không đảm bảo runtime vẫn hoạt động. Xem [HANDOFF](../../../docs/HANDOFF.md)
 để biết giới hạn kiểm chứng; không chạy notebook đồng thời trên cùng kernel.
 Người dùng cho phép sinh bản máy trước, dịch tay sau; không đọc output trước
 khi hoàn thành baseline. Notebook chỉ in trạng thái/counts, bản dịch lưu riêng. Có runner/notebook thử nghiệm độc lập;
 ứng dụng P1 vẫn dùng provider giả. Không mở tích hợp provider hoặc crawler P4; EPUB import local được mở riêng
-theo yêu cầu người dùng, xem [EPUB_IMPORT.md](EPUB_IMPORT.md).
+theo yêu cầu người dùng, xem [EPUB_IMPORT.md](../../../docs/EPUB_IMPORT.md).
 
 Người dùng chọn EN → VI, ngân sách 0 đồng, Colab free, tự review; đã đồng ý:
 không bỏ đoạn, mọi chunk hoàn tất, không còn lỗi sai ý trọng yếu sau review,
@@ -57,7 +62,7 @@ tiêu đề và URL riêng chưa xác minh nên để null, không suy từ Nove
 Trang công khai được chọn trả HTTP 403 khi tải trực tiếp; Playwright ngày
 14/10/2026 gặp Cloudflare security verification. Đã dừng, không vượt chặn;
 TOC và ch03–ch05 chưa xác minh. Trạng thái/checkpoint ở
-[`data/p0/source-check.json`](../data/p0/source-check.json).
+[`data/p0/source-check.json`](../../../data/p0/source-check.json).
 
 `rights_status=unverified`: chưa có bằng chứng quyền dịch/phân phối của chủ quyền.
 Cho phép tiếp tục chỉ là chuẩn bị riêng, không chứng minh nguồn licensed/cleared.
@@ -157,7 +162,7 @@ Package pins chưa kiểm thử Colab; nếu thiếu GPU, lỗi quyền/OOM thì
 không mua tài nguyên hoặc retry vô hạn. Notebook người dùng lưu trước đó có GPUcheck `CUDA: True`, `GPU: Tesla T4`;
 metadata riêng ghi đây là output đã lưu do main quan sát, không phải xác nhận
 phiên đang sống hoặc model đã chạy. Cập nhật 15/10/2026: đã cài và đăng nhập
-[Colab CLI](COLAB_CLI.md), gắn đúng kernel Qwen3.5 đang mở trong VS Code.
+[Colab CLI](../../../docs/COLAB_CLI.md), gắn đúng kernel Qwen3.5 đang mở trong VS Code.
 Luồng điều khiển qua CLI không cần bấm từng cell; xem HANDOFF để biết kết quả
 kiểm chứng mới nhất, không suy ra GPU inference đạt chỉ từ việc kết nối CLI.
 
@@ -167,7 +172,7 @@ Notebook nhúng ba file mã tĩnh (`runner.py`, `app/bundles.py`, `app/__init__.
 không cần repo trên Drive.
 
 CLI local `python benchmarks/p0/runner.py --help` chỉ kiểm tra giao diện.
-Luồng CLI Colab thật mô tả tại [COLAB_AUTOMATION.md](COLAB_AUTOMATION.md);
+Luồng CLI Colab lịch sử mô tả tại [COLAB_AUTOMATION.md](COLAB_AUTOMATION.md);
 notebook vẫn là lựa chọn Run all độc lập. Không chạy cả hai trên cùng kernel.
 
 Thử một chunk, giữ Drive checkpoint, ngắt runtime rồi load lại/run đúng lệnh
@@ -189,7 +194,7 @@ Các file này **không phải bundle import P1**; chưa import vào app.
 
 ## Kết quả và quyết định
 
-Chưa có số liệu thật hay model được chọn. Báo cáo cuối phải đủ năm chương × hai
+Tại thời điểm ghi mục này chưa có số liệu thật hay model được chọn. Báo cáo cuối phải đủ năm chương × hai
 ứng viên, nguồn/config bất biến, lỗi trước/sau, baseline, coverage chương dài,
 ngắt/resume, GPU/quota và chi phí thực. Chọn model chỉ khi ngưỡng chốt đạt;
 không đạt thì ghi no-go/đổi ứng viên, không tự mở phase kế tiếp.

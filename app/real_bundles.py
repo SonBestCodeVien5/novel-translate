@@ -26,6 +26,39 @@ SOURCE_TOKENS, INPUT_TOKENS, OUTPUT_TOKENS, TOTAL_TOKENS = 768, 2048, 2048, 4096
 MAX_CHUNKS = 10000
 
 
+def validate_glossary(value):
+    def safe_string(text, limit, required=False):
+        if (type(text) is not str or len(text) > limit or (required and not text.strip()) or
+                '\x00' in text or any(0xD800 <= ord(char) <= 0xDFFF for char in text)):
+            raise DomainError('Invalid glossary text.')
+    if type(value) is not dict:
+        raise DomainError('Invalid glossary.')
+    base.fields(value, 'revision entries')
+    if type(value['revision']) is not int or value['revision'] < 0:
+        raise DomainError('Invalid glossary revision.')
+    entries = value['entries']
+    if type(entries) is not list or len(entries) > 100:
+        raise DomainError('Glossary must contain at most 100 entries.')
+    seen = set()
+    for entry in entries:
+        if type(entry) is not dict:
+            raise DomainError('Invalid glossary entry.')
+        base.fields(entry, 'term translation aliases notes')
+        safe_string(entry['term'], 200, True); safe_string(entry['translation'], 200, True)
+        safe_string(entry['notes'], 1000)
+        if type(entry['aliases']) is not list or len(entry['aliases']) > 10:
+            raise DomainError('Glossary aliases must contain at most 10 entries.')
+        for item in [entry['term'], *entry['aliases']]:
+            safe_string(item, 200, True)
+            key = item.casefold()
+            if key in seen:
+                raise DomainError('Glossary terms and aliases must be unique.')
+            seen.add(key)
+    if value['revision'] == 0 and entries:
+        raise DomainError('Glossary revision zero must be empty.')
+    return value
+
+
 def _snapshot(snap):
     if type(snap) is not dict:
         raise DomainError('Invalid model snapshot.')
@@ -70,10 +103,9 @@ def _snapshot(snap):
         raise DomainError('Unsupported prompt.')
     if snap['prompt_hash'] != digest(snap['prompt']):
         raise DomainError('Prompt checksum mismatch.')
-    base.fields(snap['glossary'], 'revision entries')
-    if (type(snap['glossary']['revision']) is not int or snap['glossary'] != {'revision': 0, 'entries': []} or
-        snap['glossary_hash'] != digest(snap['glossary'])):
-        raise DomainError('Only empty glossary revision zero is supported.')
+    validate_glossary(snap['glossary'])
+    if snap['glossary_hash'] != digest(snap['glossary']):
+        raise DomainError('Glossary checksum mismatch.')
     base.fields(snap['context'], 'policy text')
     if snap['context'] != {'policy': 'none', 'text': ''} or snap['context_hash'] != digest(snap['context']):
         raise DomainError('Only empty context is supported.')
@@ -126,8 +158,9 @@ def load_tokenizer(model_id, revision):
 
 
 def _messages(source, snap):
+    glossary = canonical_bytes(snap['glossary']['entries']).decode('utf-8') if snap['glossary']['entries'] else ''
     return [{'role': 'system', 'content': snap['prompt']['system_text']},
-            {'role': 'user', 'content': snap['prompt']['user_prefix'] + '' +
+            {'role': 'user', 'content': snap['prompt']['user_prefix'] + glossary +
              snap['prompt']['glossary_prefix'] + source}]
 
 

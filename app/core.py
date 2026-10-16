@@ -49,6 +49,9 @@ class Store:
                     sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT UNIQUE NOT NULL,
                     book_id TEXT NOT NULL REFERENCES books(id), manifest TEXT NOT NULL,
                     manifest_hash TEXT NOT NULL, status TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS book_glossaries (
+                    book_id TEXT PRIMARY KEY REFERENCES books(id), revision INTEGER NOT NULL,
+                    entries TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS real_chunks (
                     job_id TEXT NOT NULL REFERENCES real_jobs(id), chunk_id TEXT NOT NULL,
                     chapter_id TEXT NOT NULL REFERENCES chapters(id), chapter_ordinal INTEGER NOT NULL,
@@ -371,9 +374,16 @@ class Store:
                 raise DomainError('Manifest source or chapter order does not match the current book.')
 
     def create_real_job(self, book_id, tokenizer, snapshot):
+        import copy
         from .real_bundles import build_manifest, validate_manifest as validate_real_manifest
         with self._connect() as db:
             book = self._book(db, book_id)
+            stored_glossary = db.execute('SELECT revision,entries FROM book_glossaries WHERE book_id=?', (book_id,)).fetchone()
+            glossary = ({'revision': stored_glossary['revision'], 'entries': load_json(stored_glossary['entries'].encode())}
+                        if stored_glossary else {'revision': 0, 'entries': []})
+            snapshot = copy.deepcopy(snapshot)
+            snapshot['glossary'] = glossary
+            snapshot['glossary_hash'] = digest(glossary)
             chapters = [dict(row) for row in db.execute(
                 'SELECT id,ordinal,source_text FROM chapters WHERE book_id=? ORDER BY ordinal', (book_id,))]
             if text_hash(''.join(row['source_text'] for row in chapters)) != book['source_hash']:
@@ -393,6 +403,29 @@ class Store:
                            (manifest['job_id'], chunk['chunk_id'], chunk['chapter_id'], chunk['chapter_ordinal'],
                             chunk['ordinal'], canonical_bytes(chunk).decode()))
         return manifest['job_id']
+
+    def get_glossary(self, book_id):
+        from .real_bundles import validate_glossary
+        with self._connect() as db:
+            self._book(db, book_id)
+            row = db.execute('SELECT revision,entries FROM book_glossaries WHERE book_id=?', (book_id,)).fetchone()
+        return validate_glossary({'revision': row['revision'], 'entries': load_json(row['entries'].encode())}
+                                 if row else {'revision': 0, 'entries': []})
+
+    def save_glossary(self, book_id, entries, base_revision):
+        from .real_bundles import validate_glossary
+        with self._connect() as db:
+            self._book(db, book_id)
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute('SELECT revision FROM book_glossaries WHERE book_id=?', (book_id,)).fetchone()
+            revision = row['revision'] if row else 0
+            if type(base_revision) is not int or base_revision != revision:
+                raise DomainError('Glossary đã được thay đổi ở tab khác. Tải lại trang trước khi lưu.', 409)
+            glossary = validate_glossary({'revision': revision + 1, 'entries': entries})
+            db.execute('''INSERT INTO book_glossaries(book_id,revision,entries) VALUES (?,?,?)
+                          ON CONFLICT(book_id) DO UPDATE SET revision=excluded.revision,entries=excluded.entries''',
+                       (book_id, glossary['revision'], canonical_bytes(entries).decode()))
+        return glossary
 
     def get_real_manifest(self, job_id):
         from .real_bundles import validate_manifest as validate_real_manifest

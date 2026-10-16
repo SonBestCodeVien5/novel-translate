@@ -136,6 +136,48 @@ def create_app(data_dir: Path | None = None):
         data['real_jobs'] = app.state.store.list_real_jobs(book_id)
         return page(request, 'book.html', book=data)
 
+    @app.get('/books/{book_id}/glossary')
+    async def glossary(request: Request, book_id: str):
+        return page(request, 'glossary.html', book=app.state.store.get_book(book_id),
+                    glossary=app.state.store.get_glossary(book_id))
+
+    def glossary_form(data):
+        return {'term': str(data.get('term', '')), 'translation': str(data.get('translation', '')),
+                'aliases': [line for line in str(data.get('aliases', '')).splitlines() if line],
+                'notes': str(data.get('notes', ''))}
+
+    @app.post('/books/{book_id}/glossary')
+    async def add_glossary_entry(request: Request, book_id: str):
+        data = await form(request)
+        current = app.state.store.get_glossary(book_id)
+        entries = current['entries'] + [glossary_form(data)]
+        try:
+            revision = int(str(data.get('revision', '')))
+        except ValueError:
+            raise DomainError('Revision không hợp lệ.')
+        app.state.store.save_glossary(book_id, entries, revision)
+        return RedirectResponse(f'/books/{book_id}/glossary', 303)
+
+    @app.post('/books/{book_id}/glossary/{entry_index}')
+    async def edit_glossary_entry(request: Request, book_id: str, entry_index: int):
+        data = await form(request)
+        current = app.state.store.get_glossary(book_id)
+        try:
+            revision = int(str(data.get('revision', '')))
+        except ValueError:
+            raise DomainError('Revision không hợp lệ.')
+        if revision != current['revision']:
+            raise DomainError('Glossary đã được thay đổi ở tab khác. Tải lại trang trước khi lưu.', 409)
+        if not 0 <= entry_index < len(current['entries']):
+            raise DomainError('Glossary entry not found.', 404)
+        entries = current['entries'][:]
+        if data.get('action') == 'remove':
+            entries.pop(entry_index)
+        else:
+            entries[entry_index] = glossary_form(data)
+        app.state.store.save_glossary(book_id, entries, revision)
+        return RedirectResponse(f'/books/{book_id}/glossary', 303)
+
     @app.post('/books/{book_id}/jobs')
     async def job(request: Request, book_id: str):
         await form(request)
@@ -203,7 +245,7 @@ def create_app(data_dir: Path | None = None):
     @app.get('/books/{book_id}/real-jobs/{job_id}')
     async def real_review(request: Request, book_id: str, job_id: str):
         own_real_job(book_id, job_id)
-        return page(request, 'real_job.html', book=app.state.store.get_book(book_id), job=app.state.store.get_real_job(job_id))
+        return page(request, 'real_job.html', book=app.state.store.get_book(book_id), job=app.state.store.get_real_job(job_id), glossary=app.state.store.get_glossary(book_id))
 
     @app.get('/books/{book_id}/real-jobs/{job_id}/manifest')
     async def real_manifest(book_id: str, job_id: str):

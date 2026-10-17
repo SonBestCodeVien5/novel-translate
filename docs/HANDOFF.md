@@ -2,6 +2,62 @@
 
 Đọc sau WORKFLOW; trạng thái mới nhất ở mục đầu, các mục sau là lịch sử.
 
+## Đang làm — Dịch thử 10 chương từ Prologue — 17/10/2026
+
+- User yêu cầu dịch 10 chương đầu và cất hai mục thông tin nguồn. Đã xác minh
+  original ordinal 0 là URL ảnh bìa, 1 là Information, 2 là Prologue. Bản thử
+  là **Prologue + Chapter 1–9**, Prologue ở ordinal 0 (reader hiển thị vị trí 1).
+- Sách gốc `9d185dcb-29d3-477a-a5be-3d82649b3580` vẫn đủ 390 mục; không sửa
+  raw/source/chapter/chunk/jobs/results/revisions. Tạo sách thử TXT riêng
+  `11d4963a-7b03-480f-a378-3a3c4b1cd39d`, chỉ 10 chương. Hai mục đầu và mapping
+  lưu trong `data/sources/reading-sample-11d4963a-7b03-480f-a378-3a3c4b1cd39d.json`.
+  Không hiểu bản thử là đã đổi mục lục sách gốc hoặc đã dịch các chương phía sau.
+- Backup trước thao tác: `backups/library-before-ten-chapter-sample-20261017.zip`;
+  restore thử tại `/tmp/novel-before-ten-chapter-sample-20261017`. Main so sánh
+  nguyên hàng sách/chapter/chunk và bảng P1 trước/sau, raw EPUB byte-identical:
+  đạt. Dữ liệu thật, backup, archive sidecar và manifest không commit.
+- Worker `gpt-6-luna/low` thêm `scripts/prepare_reading_sample.py` và 5 test
+  synthetic; main chạy `tests/test_reading_sample.py tests/test_real_store.py
+  tests/test_real_bundles.py`: **27 passed**, 4,34s. Sample reimport idempotent,
+  range thiếu từ chối trước ghi, sidecar xung đột không ghi đè. Glossary sách
+  gốc và sách thử hiện đều rỗng; glossary không tự kế thừa giữa hai sách.
+- Job Qwen3.5 `2b6a1cd4-d610-4078-a8f8-e4fcd329b385`; manifest trao đổi ở
+  `data/translation-trials/first-ten-manifest.json`. Tokenizer thật pin
+  `851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a` tải vào
+  `/tmp/novel-qwen-tokenizer-cache`; chưa tải model local. Preflight thực:
+  **38 chunks / 275.946 bytes / 28.538 input tokens**, cap output 77.824 tokens;
+  10 chương/108.727 ký tự. Dry-run local đạt; chưa có throughput sách để ước
+  lượng thời gian. Chỉ dùng T4 miễn phí, ngân sách vẫn 0 đồng.
+- Lần kiểm auth đầu refresh thất bại. Sau user chạy `.venv/bin/colab usage`,
+  token local valid; xác minh có một T4 đang hoạt động nhưng alias trỏ phiên cũ.
+  Credential cũ từng lộ log: user chưa biết đã thu hồi chưa, rồi yêu cầu tiếp
+  tục; không coi việc token valid là đã thu hồi/rotate credential.
+- Main đã tạo một kernel Python trên T4 sẵn có, websocket handshake xong
+  idle và kiểm môi trường: Tesla T4/CUDA true, Drive chưa mount,
+  transformers 5.18.0 / accelerate 1.15.0 / chưa có bitsandbytes, khác pins.
+  Chưa cài packages/mount Drive/chạy model. Main dùng `runtime.stop()` mặc định
+  (đóng channel/socket, không truyền shutdown_kernel) sau kiểm. User sau đó
+  báo phiên biến mất; list assignments xác nhận 0. Chưa rõ nguyên nhân, không
+  khẳng định lỗi Colab/quota hoặc tác động CLI khi chưa có bằng chứng.
+- User đã mở phiên mới; kiểm chỉ đọc thấy một T4, nhưng Jupyter API trả
+  0 kernel / 0 session. Chưa thực thi code/restart trên phiên mới, chưa đổi
+  alias theo phiên mới. Đã hỏi user tạo VM qua CLI hay notebook để xác định
+  bước khởi tạo kernel cần thiết; không tự suy ra notebook đã kết nối.
+- Worker rà local SDK 0.7.4 và jupyter-kernel-client 0.9.0: với supplied
+  kernel ID, `_own_kernel=False` không bị start reset; stop/destructor chỉ
+  đóng channel, không shutdown/unassign. Các code path đã dùng chưa giải
+  thích mất phiên cũ. Không coi audit mã là kiểm mất VM/new VM durability.
+- Chưa có inference hay result được nhập, vẫn **0/38**. Tiếp: hoàn tất kernel,
+  cài pins, mount Drive với consent user nếu cần, chạy chunk đầu và đo thời
+  gian thực rồi tiếp tục đúng manifest. Không cấp VM tự động.
+- Yêu cầu dịch thử này ưu tiên trước R2. Không tạo job/manifest khác khi resume;
+  dùng đúng IDs bên trên và kiểm checkpoint. Chỉ sau đủ 10 chương mới đánh dấu
+  hoàn tất; không suy ra chất lượng hoặc full-book readiness từ preflight.
+- Kiểm cuối phần chuẩn bị: 60 link Markdown local trong 4 docs và
+  `git diff --check` đạt. Chưa đạt DoD dịch đủ 10 chương.
+- `notebooks/translate.ipynb` có thay đổi metadata/format phát sinh ngoài task
+  trong phiên; cell source không đổi, không output. Giữ ngoài commit task.
+
 ## R1 — Reader local raw/dịch/song ngữ — 17/10/2026
 
 - R1 đã triển khai: trang sách có **Đọc raw**; reader

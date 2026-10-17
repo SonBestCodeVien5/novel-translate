@@ -220,6 +220,10 @@ Schema có `schema_version`; validator từ chối version/field lạ, kiểu sa
 ## 8. Nhập, review và xuất
 
 - Import cùng raw hash + import version + tùy chọn chuẩn hóa là no-op, trả sách đã có.
+- Bản dịch thử một dải chương có thể tạo thành sách TXT riêng bằng
+  `scripts/prepare_reading_sample.py`; giữ sách/raw gốc, lưu phần thông tin bỏ
+  qua và mapping ở sidecar trong `sources`. Manifest v2 vẫn bao phủ toàn bộ
+  sách thử, không thêm subset schema; glossary riêng cho từng sách.
 - Cùng tên nhưng khác hash là nguồn mới cần xem xét; không thay sách cũ tự động.
 - TXT: nhận encoding có kiểm tra; cho xem và sửa cách tách heading/chương trước khi chốt.
 - TXT không có heading rõ: cho phép một chương hoặc đánh dấu thủ công, không đoán chắc chắn.

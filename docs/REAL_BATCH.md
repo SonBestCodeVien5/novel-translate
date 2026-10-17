@@ -14,6 +14,25 @@ full 390 chương, hiệu năng/chất lượng hay native reader. Full suite ap
 passed, 23 subtests (22.30s; 3 warnings).
 Có [script Colab v2](COLAB_V2.md) cho phiên đã đăng ký; notebook vẫn là fallback.
 
+## Chuẩn bị một bản dịch thử ngắn
+
+Khi chỉ muốn dịch một số chương đầu và tách các mục thông tin nguồn, tạo một
+sách TXT dẫn xuất riêng; sách gốc và EPUB không đổi. Ví dụ bỏ hai mục đầu,
+lấy mười mục tiếp theo (vị trí đầu của bản thử là 1 trong reader):
+
+```bash
+.venv/bin/python scripts/prepare_reading_sample.py --data-dir data \
+  --book-id SOURCE_BOOK_UUID --skip-front-matter 2 --chapters 10
+```
+
+Script kiểm hash raw, giữ nguyên text/thứ tự/tiêu đề và ngôn ngữ của phần đã
+chọn, import idempotent qua Store. Các mục bỏ qua được lưu cùng provenance và
+mapping trong `data/sources/reading-sample-<SAMPLE_BOOK_UUID>.json`; file khác
+nội dung sẽ bị từ chối ghi đè. Các chương phía sau vẫn còn trong sách gốc.
+Tạo job v2 bằng `SAMPLE_BOOK_UUID` để manifest chỉ gồm sách thử; đây là sách
+riêng, không phải subset job hoặc bản sửa source của sách cũ. Glossary của
+sách thử được quản lý riêng, không tự kế thừa glossary sách gốc.
+
 ## 1. Xuất manifest ở máy local
 
 Ở trang sách chọn **Tạo job Qwen3.5**. Backend local tải tokenizer/config pin và

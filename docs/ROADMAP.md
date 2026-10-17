@@ -25,6 +25,11 @@ dần, không bắt duyệt hết mới đọc. Đánh giá hiện trạng và q
 
 ## Ưu tiên khi người dùng quay lại
 
+Yêu cầu hiện hành của user ngày 17/10: dịch thử **10 chương từ Prologue**,
+cất riêng hai mục thông tin nguồn. Ưu tiên hoàn tất job này trước R2; xem đầu
+HANDOFF để lấy sample/job và checkpoint thực tế. Chưa coi chuẩn bị batch hoặc
+auth thành công là đã dịch xong.
+
 1. **R1 — Reader local raw/dịch/song ngữ (đã triển khai):** raw đọc không job; chọn job tường
    minh; partial/offline-local đọc được, thiếu result báo rõ; revision hiện hành,
    cảnh báo stale/unreviewed và link review từ đoạn đang đọc. Không ghép job hay

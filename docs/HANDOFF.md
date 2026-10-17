@@ -2,6 +2,36 @@
 
 Đọc sau WORKFLOW; trạng thái mới nhất ở mục đầu, các mục sau là lịch sử.
 
+## R1 — Reader local raw/dịch/song ngữ — 17/10/2026
+
+- R1 đã triển khai: trang sách có **Đọc raw**; reader
+  `/books/{book_id}/read` chọn chương, mode và job v2 tường minh. Raw đọc nguồn
+  chương local không cần job/network/tokenizer/Colab; P1 FAKE giữ review riêng.
+- Bản dịch/song ngữ dùng revision hiện hành trước bản máy, kể cả revision rỗng;
+  báo thiếu result/chưa duyệt/stale, không ghép job. Đọc không đổi approval;
+  review từ từng đoạn mở đúng job/chương/chunk và bộ lọc `all`.
+- Main kiểm Chromium headless bằng profile riêng trên fixture giả lập ở
+  `/tmp/novel-r1-check`: skip link Tab/Enter, form raw không job, chuyển chương,
+  chọn job/song ngữ, ưu tiên sửa tay, cảnh báo, script được escape, review anchor
+  và chương partial đạt; bố cục 390 px không tràn ngang. Không dùng dữ liệu thật.
+- Main chạy full suite ngoài sandbox: `timeout 60s .venv/bin/python -m pytest -q`
+  đạt **125 passed, 23 subtests**, 3 warnings có sẵn, 20,58s. Sau khi bổ sung
+  assert R1 cuối, main chạy `timeout 60s .venv/bin/python -m pytest -q
+  tests/test_reader.py tests/test_review_navigation.py tests/test_accessibility.py`:
+  **5 passed**, 1 warning có sẵn, 1,84s. Worker bị timeout TestClient trong
+  sandbox; kết quả trên là main chạy ngoài sandbox. Worker `gpt-6-luna/low`
+  triển khai; main tích hợp/kiểm.
+- Không đổi schema, batch, checkpoint hay guard official export. Reader dịch
+  tái dùng `get_real_job` theo chương; manifest/source vẫn được validate toàn
+  bộ như review v2, chưa có cache. Raw chỉ truy vấn text chương đã chọn.
+- Chưa có screen reader/native EPUB reader, full book hoặc kiểm GPU mới. Không
+  suy ra chất lượng dịch từ fixture. Nhớ vị trí đọc vẫn chưa có.
+- Kiểm cuối: 100 link Markdown local trong 6 tài liệu sửa và `git diff --check`
+  đạt. Server fixture kiểm browser đã dừng; không đụng thư viện người dùng.
+- **Bước tiếp theo: R2** theo ROADMAP và PLAN; không còn task R1 dở. R2 local
+  không cần Colab/auth. R3 live vẫn cần chủ tài khoản xử lý credential/auth,
+  mount Drive và runtime trước khi chạy; không chạy live từ lời nhắc tiếp tục.
+
 ## Điều hướng phiên mới — 17/10/2026
 
 - Không còn task dở. Tiếp theo là ROADMAP R1 reader local raw/dịch/song ngữ;

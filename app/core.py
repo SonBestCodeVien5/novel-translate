@@ -278,6 +278,17 @@ class Store:
                 FROM chapters ch LEFT JOIN chunks c ON c.chapter_id=ch.id WHERE ch.book_id=?
                 GROUP BY ch.id ORDER BY ch.ordinal''', (book_id,))]
 
+    def get_raw_chapter(self, book_id, chapter_ordinal):
+        if type(chapter_ordinal) is not int:
+            raise DomainError('Chapter ordinal không hợp lệ.')
+        with self._connect() as db:
+            self._book(db, book_id)
+            row = db.execute('SELECT id,title,ordinal,source_text FROM chapters WHERE book_id=? AND ordinal=?',
+                             (book_id, chapter_ordinal)).fetchone()
+            if row is None:
+                raise DomainError('Chapter ordinal không tồn tại.', 404)
+            return dict(row)
+
     def get_book_overview(self, book_id):
         with self._connect() as db:
             book = self._book(db, book_id)

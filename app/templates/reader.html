@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}{{ book.title }} · Đọc · Novel Translate{% endblock %}
+{% block content %}
+<h1>{{ book.title }}</h1>
+<form method="get" action="/books/{{ book.id }}/read">
+  <label for="chapter">Chương</label>
+  <select id="chapter" name="chapter">
+    {% for item in chapters %}<option value="{{ item.ordinal }}"{% if item.ordinal == chapter %} selected{% endif %}>{{ item.ordinal + 1 }}. {{ item.title }}</option>{% endfor %}
+  </select>
+  <label for="mode">Cách đọc</label>
+  <select id="mode" name="mode">
+    <option value="raw"{% if mode == 'raw' %} selected{% endif %}>Bản gốc</option>
+    <option value="translated"{% if mode == 'translated' %} selected{% endif %}>Bản dịch</option>
+    <option value="bilingual"{% if mode == 'bilingual' %} selected{% endif %}>Song ngữ</option>
+  </select>
+  <label for="job_id">Real job v2 · cần chọn rõ khi đọc bản dịch</label>
+  <select id="job_id" name="job_id">
+    <option value=""{% if not job_id %} selected{% endif %}>Không chọn job</option>
+    {% for item in real_jobs %}<option value="{{ item.id }}"{% if item.id == job_id %} selected{% endif %}>{{ item.id }} · {{ item.status }} · {{ item.completed }}/{{ item.total }}</option>{% endfor %}
+  </select>
+  <button>Hiển thị</button>
+</form>
+{% if mode == 'raw' %}<p>Bản gốc được đọc từ dữ liệu local; không cần job dịch.</p>{% endif %}
+{% for item in real_jobs if item.id == job_id %}<p>Job {{ item.id }} · {{ item.status }} · {{ item.completed }}/{{ item.total }} result đã nhập</p>{% endfor %}
+<nav aria-label="Điều hướng chương">
+  {% if previous_chapter is not none %}<a href="?chapter={{ previous_chapter }}&amp;mode={{ mode }}{% if job_id %}&amp;job_id={{ job_id }}{% endif %}">Chương trước</a>{% endif %}
+  {% if next_chapter is not none %}<a href="?chapter={{ next_chapter }}&amp;mode={{ mode }}{% if job_id %}&amp;job_id={{ job_id }}{% endif %}">Chương tiếp</a>{% endif %}
+</nav>
+{% if mode == 'raw' %}
+<article class="reader-text"><h2>{{ chapter + 1 }}. {{ raw.title }}</h2><pre>{{ raw.source_text }}</pre></article>
+{% else %}
+  {% for item in chunks %}
+  {% set chunk = item.chunk %}
+  <article id="chunk-{{ chunk.chunk_id }}">
+    <h2>Chương {{ chunk.chapter_ordinal + 1 }} · chunk {{ chunk.ordinal + 1 }}</h2>
+    {% if item.stale %}<p role="status">Bản sửa đã cũ so với result hiện tại.</p>{% endif %}
+    {% if not item.result %}<p role="status">Chưa có result hoàn tất cho chunk này.</p>{% endif %}
+    {% if item.result and not item.approved %}<p role="status">Bản dịch chưa được duyệt hiện hành.</p>{% endif %}
+    {% if item.revision %}<p>Bản sửa hiện hành · revision {{ item.revision.revision }}</p>{% endif %}
+    {% if mode == 'bilingual' %}<div class="columns"><div class="reader-text"><h3>Nguồn</h3><pre>{{ chunk.source_text }}</pre></div><div class="reader-text"><h3>Bản dịch</h3><pre>{% if item.display_text is not none %}{{ item.display_text }}{% endif %}</pre></div></div>
+    {% else %}<div class="reader-text"><h3>Bản dịch</h3><pre>{% if item.display_text is not none %}{{ item.display_text }}{% endif %}</pre></div>{% endif %}
+    <a href="/books/{{ book.id }}/real-jobs/{{ job_id }}?chapter={{ chapter }}&amp;filter=all#chunk-{{ chunk.chunk_id }}">Mở review chunk này</a>
+  </article>
+  {% else %}<p>Job này không có chunk trong chương đã chọn.</p>{% endfor %}
+{% endif %}
+<p><a href="/books/{{ book.id }}?chapter={{ chapter }}">Quay lại sách</a></p>
+{% endblock %}

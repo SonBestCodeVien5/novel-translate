@@ -8,8 +8,8 @@ glossary theo sách và backup/restore. Live smoke T4 đã chạy fixture 2 chư
 chunk và resume sau restart kernel cùng VM; chưa kiểm mất VM/new VM, full 390
 chương, benchmark tốc độ/chất lượng hay native EPUB reader. Hướng sản phẩm được
 chốt là app đọc local nhẹ: raw/dịch/song ngữ là luồng chính, review tiếp tục để
-cải thiện dần. UI hiện tại vẫn thiên về review; reader và reading progress là
-backlog chưa triển khai. Xem [đánh giá hướng đi](DIRECTION_REVIEW.md).
+cải thiện dần. Reader local R1 có raw/dịch/song ngữ, chọn job v2 tường minh
+và nối review; reading progress R2 chưa triển khai. Xem [đánh giá hướng đi](DIRECTION_REVIEW.md).
 Trạng thái vận hành mới nhất nằm ở [HANDOFF.md](HANDOFF.md). [P1.md](P1.md) ghi bằng chứng/giới hạn
 cụ thể. Nội dung bên dưới mô tả hướng thiết kế, không cam kết chất lượng.
 
@@ -38,7 +38,7 @@ bắt buộc; bản dịch máy luôn cần kiểm tra, nhất là thiếu đo�
 Phạm vi là một người dùng: TXT trước, EPUB sau. Raw phải đọc được không cần job;
 bản dịch chọn theo job rõ ràng và partial result vẫn đọc được. Không yêu cầu
 duyệt hết mới đọc. Review/glossary tiếp tục có vai trò cải thiện bản dịch; app
-hiện có review UI nhưng chưa có dedicated reader hay reading progress. User đã
+đã có reader riêng và review UI; reading progress chưa triển khai. User đã
 có dữ liệu và hoãn crawling; xem ROADMAP cho thứ tự tiếp theo.
 
 ## Kiến trúc đã chọn cho bản đầu

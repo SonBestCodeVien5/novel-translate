@@ -25,7 +25,7 @@ dần, không bắt duyệt hết mới đọc. Đánh giá hiện trạng và q
 
 ## Ưu tiên khi người dùng quay lại
 
-1. **R1 — Reader local raw/dịch/song ngữ:** raw đọc không job; chọn job tường
+1. **R1 — Reader local raw/dịch/song ngữ (đã triển khai):** raw đọc không job; chọn job tường
    minh; partial/offline-local đọc được, thiếu result báo rõ; revision hiện hành,
    cảnh báo stale/unreviewed và link review từ đoạn đang đọc. Không ghép job hay
    version. **DoD:** fixture có raw, nhiều job, revision, stale và partial chứng
@@ -33,6 +33,8 @@ dần, không bắt duyệt hết mới đọc. Đánh giá hiện trạng và q
    từ đoạn đọc mở đúng chunk/job để review. Đọc raw từ dữ liệu local phải chạy
    khi không có network, tokenizer hoặc Colab; chỉ tải nội dung chương được
    chọn; giữ label, thao tác bàn phím và escaping nội dung không tin cậy.
+   Reader dùng job v2 tường minh; P1 FAKE giữ review riêng. Bằng chứng kiểm
+   local nằm ở đầu [HANDOFF](HANDOFF.md).
 2. **R2 — Nhớ vị trí đọc:** tách khỏi review/checkpoint dịch, SQLite local một
    vị trí gần nhất mỗi sách. **DoD:** đóng/mở lại app khôi phục chapter, nguồn
    raw/job/mode và anchor hợp lệ; trường hợp job/anchor không còn hợp lệ báo
@@ -73,7 +75,7 @@ thêm subset/retranslate khi chưa có nhu cầu cụ thể.
 | P3-02 | Backup, restore, accessibility | Dev | Restore thử thành công, form dùng được bằng bàn phím |
 | P3-03 | Nối flow dịch vào UI | Dev + người dùng | Nút Dịch/tiến độ/resume gọi script đã kiểm chứng; kết quả chuyển sang review, duyệt/export chính thức có chủ đích; có notebook fallback khi CLI bị hoãn |
 | P4-01 | Adapter một site | Dev | Crawl/import lặp đúng thứ tự, fixture và SSRF tests đạt |
-| R1 | Reader local raw/dịch/song ngữ | Dev | Đạt DoD R1 ở ưu tiên phía trên; chưa triển khai |
+| R1 | Reader local raw/dịch/song ngữ | Dev | Đã triển khai và kiểm local; xem HANDOFF cho fixture/test/browser, R2 tiếp theo |
 | R2 | Nhớ vị trí đọc | Dev | Đạt DoD R2; chưa triển khai |
 | R3 | Nhiều phiên/VM mới | Dev + người dùng | Đạt DoD R3 trên fixture khi runtime cho phép; còn kiểm, không gate reader |
 | R4 | Glossary/review cải thiện lúc đọc | Dev + người dùng | Đạt DoD R4; glossary/review đã có một phần |

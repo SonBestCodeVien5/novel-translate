@@ -10,9 +10,9 @@ và export; nhãn `FAKE` không phải bản dịch thật. Hiện đã có lu�
 cho provider `Qwen/Qwen3.5-4B`: tạo job trong app local, chạy/resume manifest
 bằng notebook Colab trên Drive, nhập kết quả về local, review/duyệt theo
 job và export TXT hoặc EPUB. Có glossary, nhập nhiều result và backup/restore.
-P1 fake và batch thật là hai luồng riêng. Trang P1 hiện cho đọc raw khi chưa có
-job; app chưa có trang đọc riêng hay nhớ vị trí đọc. Trang đọc riêng và vị trí
-đọc là backlog, chưa triển khai.
+P1 fake và batch thật là hai luồng riêng. Reader local có chế độ raw, bản dịch
+và song ngữ; bản dịch chọn rõ một job v2, kể cả job chưa đủ kết quả. Nhớ vị trí
+đọc thuộc R2, chưa triển khai.
 Xem [hướng dẫn sử dụng batch](docs/REAL_BATCH.md) và
 [hợp đồng/trạng thái tích hợp](docs/INTEGRATION.md).
 
@@ -54,6 +54,17 @@ local. Dữ liệu mặc định ở `data/` (được bỏ qua trong Git); bi�
 `NOVEL_DATA_DIR` chọn thư mục local khác. Không đặt SQLite trên Drive.
 Khi dùng bàn phím, Tab đầu tiên hiện **Bỏ qua điều hướng**; Enter chuyển tới
 nội dung chính. Các trang có title riêng và nút lưu chunk được đọc kèm chương/chunk.
+
+## Đọc local
+
+Ở trang sách chọn **Đọc raw** để đọc nguồn đã nhập, không cần tạo job, network,
+tokenizer hay Colab. Chọn chương bằng danh sách hoặc liên kết trước/tiếp.
+Trong reader, chọn rõ job v2 và chế độ bản dịch/song ngữ rồi hiển thị; cũng có
+thể mở reader từ trang review job. P1 FAKE vẫn có trang review riêng.
+
+Reader ưu tiên bản sửa tay hiện hành của job đã chọn, báo đoạn thiếu kết quả,
+chưa duyệt hoặc stale; đọc không tự duyệt. Liên kết review tại từng đoạn mở
+đúng job/chương/chunk để sửa hoặc duyệt. Vị trí đọc chưa được lưu qua lần mở app.
 
 ## Thử luồng P1
 

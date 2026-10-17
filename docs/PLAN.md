@@ -34,7 +34,7 @@ trong [P1.md](P1.md).
 - Không có React, Celery, Redis, RAG, Docker, nhiều người dùng hay dịch vụ Colab luôn bật trong MVP.
 - Không cam kết tốc độ/chất lượng trước khi đo trên sách và phần cứng thực tế.
 
-### Hợp đồng reader tương lai (chưa triển khai)
+### Hợp đồng reader local (R1) và vị trí đọc (R2)
 
 - Đọc raw không tạo job và không cần network, tokenizer, GPU hay runtime dịch.
 - Người dùng chọn rõ job dịch cần đọc; không tự chọn job mới nhất, ghép chunk
@@ -48,8 +48,10 @@ trong [P1.md](P1.md).
   lập với review và checkpoint dịch: SQLite local lưu một vị trí gần nhất mỗi
   sách gồm chapter ID, lựa chọn raw/job/mode và anchor thuộc đúng job nếu có;
   không cam kết đồng bộ vị trí pixel.
-- Đây là hướng thiết kế, không phải hành vi hiện có. Xem
-  [đánh giá hướng đi](DIRECTION_REVIEW.md).
+- R1 có reader `/books/{book_id}/read`, chọn `chapter`, `mode` và `job_id` v2
+  tường minh; P1 FAKE giữ luồng review riêng. Raw lấy nguồn chương đã nhập;
+  dịch/song ngữ dùng chunk của job v2. R2 lưu vị trí vẫn chưa triển khai. Xem
+  [đánh giá hướng đi](DIRECTION_REVIEW.md) cho bối cảnh trước R1.
 
 ### Cải thiện bản dịch theo bằng chứng (chưa tự học)
 

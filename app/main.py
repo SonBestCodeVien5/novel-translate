@@ -209,6 +209,42 @@ def create_app(data_dir: Path | None = None):
                     previous_chapter=ordinals[ordinals.index(chapter) - 1] if chapter != ordinals[0] else None,
                     next_chapter=ordinals[ordinals.index(chapter) + 1] if chapter != ordinals[-1] else None)
 
+    @app.get('/books/{book_id}/read')
+    async def reader(request: Request, book_id: str):
+        store = app.state.store
+        chapters = store.book_chapters(book_id)
+        ordinals = [item['ordinal'] for item in chapters]
+        try:
+            chapter = int(request.query_params.get('chapter', ordinals[0]))
+        except ValueError:
+            raise DomainError('Chapter ordinal không hợp lệ.')
+        if chapter not in ordinals:
+            raise DomainError('Chapter ordinal không tồn tại.', 404)
+        mode = request.query_params.get('mode', 'raw')
+        if mode not in {'raw', 'translated', 'bilingual'}:
+            raise DomainError('Reader mode không hợp lệ.')
+        job_id = request.query_params.get('job_id') or None
+        if job_id is not None and store.real_job_book(job_id) != book_id:
+            raise DomainError('Real job not found for this book.', 404)
+        if mode != 'raw' and job_id is None:
+            raise DomainError('Hãy chọn rõ real job để đọc bản dịch.', 400)
+
+        raw = store.get_raw_chapter(book_id, chapter) if mode == 'raw' else None
+        chunks = []
+        if mode != 'raw':
+            job = store.get_real_job(job_id, chapter)
+            for item in job['chunks']:
+                revision, result = item['revision'], item['result']
+                item['display_text'] = revision['edited_text'] if revision is not None else (
+                    result['translated_text'] if result is not None else None)
+                item['approved'] = bool(result and revision and revision['approved'] and not item['stale'])
+            chunks = job['chunks']
+        return page(request, 'reader.html', book=store.get_book_overview(book_id),
+                    chapters=chapters, real_jobs=store.list_real_jobs(book_id), chapter=chapter,
+                    mode=mode, job_id=job_id, raw=raw, chunks=chunks,
+                    previous_chapter=ordinals[ordinals.index(chapter) - 1] if chapter != ordinals[0] else None,
+                    next_chapter=ordinals[ordinals.index(chapter) + 1] if chapter != ordinals[-1] else None)
+
     @app.get('/books/{book_id}/glossary')
     async def glossary(request: Request, book_id: str):
         return page(request, 'glossary.html', book=app.state.store.get_book_overview(book_id),

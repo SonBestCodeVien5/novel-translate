@@ -1,7 +1,11 @@
 # Làm việc trong novel-translate
 
-Đọc `docs/WORKFLOW.md`, rồi `docs/HANDOFF.md` trước khi làm việc; chỉ đọc
-phần liên quan của `docs/PLAN.md` và `docs/ROADMAP.md` khi quyết định phạm vi. Khi cần bối cảnh tổng thể, xem `docs/PROJECT_KNOWLEDGE.md`;
+Mục tiêu: app đọc truyện local nhẹ, raw/dịch/song ngữ; review và glossary
+hỗ trợ cải thiện bản dịch dần. Với “tiếp tục làm tiếp”, chọn task theo WORKFLOW.
+Đọc phần quy tắc liên quan của `docs/WORKFLOW.md`, rồi chỉ mục mới nhất
+`docs/HANDOFF.md`, ưu tiên hiện hành trong `docs/ROADMAP.md` và hợp đồng task
+trong `docs/PLAN.md`. Chỉ tra lịch sử/report/archive khi cần bằng chứng.
+Khi cần bối cảnh tổng thể, xem `docs/PROJECT_KNOWLEDGE.md`;
 đây là tài liệu tham khảo, không thay PLAN/ROADMAP hoặc quy tắc làm việc.
 Repo có luồng local P1 fake riêng và offline batch/review v2 cho provider
 `Qwen/Qwen3.5-4B`; xem `docs/REAL_BATCH.md` và `docs/INTEGRATION.md`. User đã
@@ -34,6 +38,9 @@ chưa được Codex tự khám phá như skill đã cài.
   khi cần có thể đợi mailbox tối đa 60 giây/lần. Không coi im lặng là hoàn tất.
 - Nếu chưa có công cụ delegation/model phù hợp, main báo giới hạn và chuẩn bị
   task packet; không giả vờ worker đã chạy hay âm thầm đổi mô hình.
+- Worker không tự ý thay đổi task packet; nếu cần, báo main để chia lại. Không
+  retry vô hạn, không bỏ qua rủi ro, không giả vờ hoàn tất.
+- Hoàn thành tất cả những gì đã được giao, công việc nào cần phải có tôi thao tác  trực tiếp thì cần báo ngay giai đoạn plan trước khi triển khai để tôi làm.
 
 ## Thay đổi nhỏ nhưng đủ
 
@@ -59,7 +66,7 @@ chưa được Codex tự khám phá như skill đã cài.
 - Kết luận phải phân biệt việc đã kiểm tra với kế hoạch; nêu ngắn phần chưa kiểm
   tra và rủi ro còn lại. Không claim ứng dụng/test hoạt động khi chưa triển khai.
 
-## Crawling rules
+## Crawling rules (not using this function in this repo currently)
 
 Do not use requests only.
 
@@ -70,3 +77,6 @@ For protected websites:
 - save checkpoint
 
 Crawler must be resumable.
+
+## Git và hoàn thành task
+Khi các workers hoàn thành công việc hoặc chuẩn bị cho việc hết phiên và đánh dấu task hoàn thành để chuẩn bị cho lần chạy tiếp theo, hãy cập nhật docs và tiến độ liên quan và commit các thay đổi vào git. Sử dụng commit message rõ ràng, đúng convention của repo, mô tả những gì đã được thay đổi và lý do. Nếu có nhiều thay đổi liên quan đến các task khác nhau, hãy tách chúng thành các commit riêng biệt để dễ dàng theo dõi và quản lý.

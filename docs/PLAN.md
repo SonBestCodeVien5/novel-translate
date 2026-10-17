@@ -51,6 +51,15 @@ trong [P1.md](P1.md).
 - Đây là hướng thiết kế, không phải hành vi hiện có. Xem
   [đánh giá hướng đi](DIRECTION_REVIEW.md).
 
+### Cải thiện bản dịch theo bằng chứng (chưa tự học)
+
+- Sửa revision trong review cải thiện bản local; giữ result máy và lịch sử sửa.
+- Glossary được snapshot vào job mới, không mutate job cũ.
+- Gom mẫu lỗi có nguồn/job/chunk và đối chiếu bản sửa trước khi điều chỉnh
+  prompt hoặc bounded context; chỉ mở rộng context khi lỗi cụ thể chứng minh cần.
+- Không có tự học/fine-tune hay tự sửa chương cũ. Selective retranslate chưa
+  triển khai; job/manifest cũ vẫn bất biến.
+
 ## 2. Quyết định còn mở
 
 | Quyết định | Thông tin cần có | Checkpoint |

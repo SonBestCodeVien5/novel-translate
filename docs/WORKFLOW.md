@@ -6,9 +6,22 @@ Bắt đầu từ [AGENTS.md](../AGENTS.md), workflow này rồi [HANDOFF.md](HA
 HANDOFF ghi trạng thái vận hành mới nhất; PLAN/ROADMAP vẫn quyết định hợp đồng
 và phạm vi. Chỉ đọc phần liên quan khi đổi phạm vi, không nạp toàn bộ docs mỗi
 nhiệm vụ. Dùng vài lần đọc có mục tiêu và `rg` giới hạn vào luồng cần sửa.
-Khi tiếp nối sau tạm dừng, đọc mục đầu HANDOFF: checklist khởi động, việc đã
-kiểm, credential/runtime còn mở và thứ tự đề xuất. Không mặc định process,
-Colab, alias hoặc fixture `/tmp` từ phiên trước vẫn còn hoạt động.
+Lúc khởi động chỉ cần mục “Đọc đúng chỗ”, “Phong cách làm việc” và “Giao việc
+ít context”; mục cài cấu hình chỉ đọc khi làm việc đó. Kiểm `git status -sb`
+và commit gần nhất trước sửa; giữ thay đổi có sẵn ngoài phạm vi task.
+Nguồn quyết định theo thứ tự: yêu cầu hiện tại của user, quy tắc AGENTS/WORKFLOW,
+rồi hợp đồng và phạm vi PLAN/ROADMAP. HANDOFF chỉ ghi hiện trạng; chỉ mục mới
+nhất là trạng thái hiện hành, các mục dưới là lịch sử không ghi đè ưu tiên.
+Khi user nói “tiếp tục/làm tiếp” mà không nêu scope khác, resume task dở ở đầu
+HANDOFF; nếu không có task dở, chọn task chưa hoàn thành cao nhất trong ưu tiên
+hiện hành ROADMAP có thể làm trong môi trường. Đọc đúng hợp đồng PLAN và mục
+ROADMAP của task đó; chỉ tra lịch sử HANDOFF hoặc DIRECTION_REVIEW/archive khi
+cần bằng chứng. Không đọc lại toàn bộ báo cáo hướng đi mỗi lượt.
+Không mặc định process, Colab, alias hoặc fixture `/tmp` từ phiên trước còn sống.
+Nếu thiếu auth/runtime, nêu ngay phần cần user, giữ DoD chưa đạt và tiếp tục phần
+local độc lập được phép. Prompt tiếp tục chung không cho phép chạy live/model,
+full book, crawler hay benchmark như side effect. Chốt một task cùng DoD, caller,
+file và kiểm tra trước khi giao; hoàn tất task trước khi mở task khác.
 Trạng thái hiện hành ở HANDOFF: user chọn Qwen3.5 làm provider tích hợp; app có
 offline batch/review v2 và notebook fallback. Live smoke T4 ngày 16/10/2026
 đạt trên fixture 2 chương/2 chunk, gồm resume sau restart kernel cùng VM; chưa

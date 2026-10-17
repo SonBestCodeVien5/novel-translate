@@ -2,6 +2,26 @@
 
 Đọc sau WORKFLOW; trạng thái mới nhất ở mục đầu, các mục sau là lịch sử.
 
+## Điều hướng phiên mới — 17/10/2026
+
+- Không còn task dở. Tiếp theo là ROADMAP R1 reader local raw/dịch/song ngữ;
+  đọc PLAN “Hợp đồng reader tương lai” và ROADMAP R1. Hợp đồng: raw không cần
+  job/network; chọn job tường minh, revision trước machine, partial đọc được;
+  đọc không đổi approval và review mở đúng chunk/job.
+- R1/R2 là công việc local, không cần xử lý Colab CLI cũ. R3 live cần chủ tài
+  khoản xử lý credential/auth và cấp runtime; xem mục “Hướng sản phẩm” và lịch
+  sử liên quan để biết dependency mới nhất.
+- Trước triển khai, main cần đọc caller/route, core/store, templates/CSS,
+  navigation/accessibility và tests liên quan để chốt file owner, DoD và kiểm tra.
+  Chưa có owner file hoặc hành động user cần làm cho R1; chưa bắt đầu code.
+- Cuối mỗi lượt cập nhật ở đầu HANDOFF: task ID, đã kiểm, còn thiếu, bước kế.
+  Chỉ đọc mục mới nhất để tiếp tục; lịch sử bên dưới chỉ tra khi cần bằng chứng.
+- Lượt này chỉ cập nhật hướng dẫn điều hướng và cơ chế cải thiện bản dịch trong
+  PLAN; không chạy lại app tests. Main kiểm 55 link local trong 4 file cùng
+  `git diff --check`: đạt. Theo yêu cầu user sau đó, gộp cả thay đổi `AGENTS.md`
+  có sẵn vào commit docs mới nhất bằng amend. Chưa thử bootstrap một phiên
+  Codex mới.
+
 ## Hướng sản phẩm: reader local nhẹ — 17/10/2026
 
 - Phạm vi lượt này chỉ rà soát và cập nhật tài liệu; không đổi code/schema/data,

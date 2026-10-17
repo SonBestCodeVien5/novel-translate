@@ -341,15 +341,60 @@ def collect_results(api, store, manifest, job_id, chunk_ids=None, missing_out=No
     expected = ({chunk['chunk_id'] for chunk in manifest['chunks']} if chunk_ids is None
                 else set(chunk_ids))
     counts = {'imported': 0, 'duplicate': 0, 'rejected': 0, 'missing': 0, 'unavailable': 0}
+    valid_ids = []
     for chunk_id in sorted(expected):
         # Manifest validation guarantees UUID IDs; still enforce before path construction.
         try:
-            if str(uuid.UUID(chunk_id)) != chunk_id:
+            if type(chunk_id) is not str or str(uuid.UUID(chunk_id)) != chunk_id:
                 raise ValueError
-        except (ValueError, AttributeError):
+        except (ValueError, TypeError, AttributeError):
             counts['rejected'] += 1
             continue
-        path = f'drive/MyDrive/novel-batch/{job_id}/results/{chunk_id}.json'
+        valid_ids.append(chunk_id)
+
+    if not valid_ids:
+        return counts
+    results_dir = f'drive/MyDrive/novel-batch/{job_id}/results'
+    try:
+        directory = api.content(results_dir)
+    except Exception:
+        counts['unavailable'] += 1
+        return counts
+    if directory is None:
+        missing_ids = valid_ids
+        names = {}
+    else:
+        if (type(directory) is not dict or directory.get('type') != 'directory'
+                or type(directory.get('content')) is not list):
+            counts['unavailable'] += 1
+            return counts
+        names = {}
+        for entry in directory['content']:
+            if (type(entry) is not dict or type(entry.get('name')) is not str
+                    or not entry['name'] or entry['name'] in ('.', '..')
+                    or any(char in entry['name'] for char in ('/', '\\', '\x00'))
+                    or entry.get('type') not in ('file', 'directory')
+                    or entry['name'] in names):
+                counts['unavailable'] += 1
+                return counts
+            names[entry['name']] = entry['type']
+        expected_names = {chunk_id + '.json' for chunk_id in valid_ids}
+        if any(names.get(name) == 'directory' for name in expected_names):
+            counts['unavailable'] += 1
+            return counts
+        missing_ids = [chunk_id for chunk_id in valid_ids if chunk_id + '.json' not in names]
+
+    for chunk_id in missing_ids:
+        counts['missing'] += 1
+        if missing_out is not None:
+            missing_out.append(chunk_id)
+    if directory is None:
+        return counts
+
+    for chunk_id in valid_ids:
+        if names.get(chunk_id + '.json') != 'file':
+            continue
+        path = f'{results_dir}/{chunk_id}.json'
         try:
             raw = api.read_file(path)
         except TimeoutError:

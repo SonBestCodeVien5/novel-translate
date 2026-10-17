@@ -42,6 +42,10 @@ cho người dùng và báo rõ nếu GPU hoặc pins không đúng.
 
 Trên Drive, manifest nằm ở `MyDrive/novel-batch/<job_uuid>/manifest.json`, kết
 quả hoàn tất nằm tại `MyDrive/novel-batch/<job_uuid>/results/<chunk_uuid>.json`.
+CLI đọc danh sách thư mục results một lần rồi chỉ tải các file UUID dự kiến
+có trong danh sách; thư mục 404 hoặc file chưa có được tính là pending. Lỗi đọc
+hoặc danh sách không hợp lệ vẫn dừng bước chạy, không bị coi là checkpoint
+trống. Mỗi result đã tải tiếp tục được validate đầy đủ trước import.
 Runner và lệnh local từ chối manifest/checkpoint lệch; trước khi import, local
 chỉ đọc tên result UUID dự kiến, giới hạn kích thước và validate lại provenance,
 hash cùng job. Import trùng là no-op; result xung đột không ghi đè revision/sửa

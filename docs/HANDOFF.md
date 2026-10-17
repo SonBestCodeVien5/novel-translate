@@ -56,20 +56,39 @@
   5.3.0 / accelerate 1.11.0 / bitsandbytes 0.48.2 (pip returncode 0, metadata
   readback khớp). Helper tạm `/tmp/novel-ten-chapter-runtime-setup.py` capture
   stdout/stderr pip, không tạo/restart VM; self-check URL/HTTP và snippet syntax đạt.
-- Drive mount đã gửi trên cùng kernel/session. Colab yêu cầu consent mới;
-  đã đưa link Google cho user, tiến trình helper đang chờ Enter sau khi user
-  báo cấp quyền xong. Không lưu consent URL/token trong docs. Helper mount
-  dùng SDK dfs_ephemeral, không đổi user account, không tự bấm consent.
-- Chưa có inference hay result được nhập, vẫn **0/38**. Tiếp: xác minh pins,
-  mount Drive với consent user nếu cần, chạy chunk đầu và đo thời gian thực
-  rồi tiếp tục đúng manifest. Không cấp VM tự động.
+- User đã cấp quyền Drive. Lượt mount chờ consent cũ kết thúc ValueError;
+  chạy lại một lần trên đúng kernel sau consent đạt **mounted=true**. Không
+  lưu consent URL/token trong docs; helper dùng SDK dfs_ephemeral, không tự
+  bấm consent. Không restart/reallocate runtime sau bước này.
+- Lệnh live `scripts/run_colab.py --data-dir data --job-id
+  2b6a1cd4-d610-4078-a8f8-e4fcd329b385 --session novel-v2 --limit 1 --timeout
+  1800` chưa tới inference: lượt đầu TARGET_OR_AUTH_FAILED, kiểm lại target
+  idle đạt; lượt thử tiếp dừng `RESULT_COLLECTION_FAILED` với imported=0,
+  rejected=0, unavailable=2. Read-only metadata xác nhận thư mục results và
+  manifest của job mới chưa tồn tại trên Drive. Không có model/result mới.
+- Đã sửa collector local: list thư mục một lần, chỉ tải UUID result được
+  liệt kê là file; thư mục404/file chưa có là missing, malformed/read failure
+  vẫn unavailable và dừng trước generation. Strict validator/import không đổi.
+  Worker sửa `scripts/run_colab.py` + `tests/test_colab_v2.py`; worker targeted
+  **40 passed**. Main kiểm thêm UI: `timeout 60s .venv/bin/python -m pytest -q
+  tests/test_colab_v2.py tests/test_colab_web.py tests/test_real_store.py
+  tests/test_real_runner.py`: **43 passed**, 1 warning có sẵn, 9,09s.
+  Bổ sung ca sparse/missing/malformed/hostile listing và run-level không sinh
+  model khi listing unavailable. Không đổi manifest/source/provider/runner.
+- Đã chạy lại cùng lệnh `--limit 1 --timeout 1800` với collector mới; chờ
+  kết quả live trước khi kết luận sửa được luồng thật. Không restart T4.
+- App hiện có ở cổng 8000; main GET index và reader sample/job đều HTTP200.
+  Không khởi động được server mới vì port đã dùng; không dừng server đó.
+- Resume phải kiểm DB/Drive/process trước, không chạy hai lệnh cùng kernel.
+  Sau chunk đầu hợp lệ sẽ tiếp tục phần còn thiếu của đúng job để đủ 10 chương.
+  Chưa có bản dịch (**0/38**); không cấp VM tự động.
 - Yêu cầu dịch thử này ưu tiên trước R2. Không tạo job/manifest khác khi resume;
   dùng đúng IDs bên trên và kiểm checkpoint. Chỉ sau đủ 10 chương mới đánh dấu
   hoàn tất; không suy ra chất lượng hoặc full-book readiness từ preflight.
 - Kiểm cuối phần chuẩn bị: 60 link Markdown local trong 4 docs và
   `git diff --check` đạt. Chưa đạt DoD dịch đủ 10 chương.
-- `notebooks/translate.ipynb` có thay đổi metadata/format phát sinh ngoài task
-  trong phiên; cell source không đổi, không output. Giữ ngoài commit task.
+- `notebooks/translate.ipynb` có thay đổi của user trong phiên (VS Code/cell
+  kiểm kết nối), nằm ngoài phạm vi task; giữ nguyên và ngoài commit.
 
 ## R1 — Reader local raw/dịch/song ngữ — 17/10/2026
 

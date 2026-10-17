@@ -130,21 +130,83 @@ def test_partial_collection_duplicates_manual_edits_and_malicious_ids(tmp_path):
     results = {first['chunk_id']: _result(manifest, first)}
     class API:
         paths = []
-        def read_file(self, path):
+        reads = []
+        directory = True
+        listing_error = None
+        def content(self, path):
             self.paths.append(path)
+            if self.listing_error:
+                raise self.listing_error
+            if self.directory is None:
+                return None
+            if self.directory is not True:
+                return self.directory
+            names = [chunk_id + '.json' for chunk_id in results]
+            return {'type': 'directory', 'content': [{'name': name, 'type': 'file'} for name in names]}
+        def read_file(self, path):
+            self.reads.append(path)
             return results.get(path.rsplit('/', 1)[-1][:-5])
     api = API()
     assert run_colab.collect_results(api, store, manifest, job) == {
         'imported': 1, 'duplicate': 0, 'rejected': 0, 'missing': 1, 'unavailable': 0}
     assert store.get_real_job(job)['chunks'][0]['revision']['edited_text'] == 'Late manual edit'
     assert run_colab.collect_results(api, store, manifest, job)['duplicate'] == 1
+    assert len(api.paths) == 2 and len(api.reads) == 2
     results[second['chunk_id']] = b'{malformed'
     assert run_colab.collect_results(api, store, manifest, job)['rejected'] == 1
-    api.paths.clear()
+    api.paths.clear(); api.reads.clear()
     malicious = json.loads(json.dumps(manifest))
     malicious['chunks'][0]['chunk_id'] = '../escape'
     counts = run_colab.collect_results(api, store, malicious, job)
-    assert counts['rejected'] == 2 and all(not p.endswith('../escape.json') for p in api.paths)
+    assert counts['rejected'] == 2 and all(not p.endswith('../escape.json') for p in api.reads)
+
+
+def test_result_directory_shortcuts_missing_reads_and_only_reads_listed_expected_files(tmp_path):
+    store, job, manifest = make_job(tmp_path, two=True)
+    first, second = manifest['chunks']
+    class API:
+        reads = []
+        directory = None
+        def content(self, path): return self.directory
+        def read_file(self, path):
+            self.reads.append(path)
+            return _result(manifest, first) if path.endswith(first['chunk_id'] + '.json') else None
+    api = API()
+    missing_out = []
+    counts = run_colab.collect_results(api, store, manifest, job, missing_out=missing_out)
+    assert counts['missing'] == 2 and counts['unavailable'] == 0
+    assert missing_out == sorted([first['chunk_id'], second['chunk_id']]) and api.reads == []
+
+    api.directory = {'type': 'directory', 'content': [
+        {'name': first['chunk_id'] + '.json', 'type': 'file'},
+        {'name': 'unexpected.json', 'type': 'file'}]}
+    counts = run_colab.collect_results(api, store, manifest, job)
+    assert counts['imported'] == 1 and counts['missing'] == 1
+    assert api.reads == [f'drive/MyDrive/novel-batch/{job}/results/{first["chunk_id"]}.json']
+
+    api.reads.clear()
+    api.directory['content'].append({'name': '../outside.json', 'type': 'file'})
+    counts = run_colab.collect_results(api, store, manifest, job)
+    assert counts['unavailable'] == 1 and api.reads == []
+
+
+@pytest.mark.parametrize('listing', [
+    RuntimeError('listing failed'),
+    {'type': 'file', 'content': []},
+    {'type': 'directory', 'content': [{'name': [], 'type': 'file'}]},
+])
+def test_invalid_result_directory_is_unavailable_before_any_file_read(tmp_path, listing):
+    store, job, manifest = make_job(tmp_path, two=True)
+    class API:
+        reads = []
+        def content(self, path):
+            if isinstance(listing, Exception):
+                raise listing
+            return listing
+        def read_file(self, path): self.reads.append(path)
+    api = API()
+    counts = run_colab.collect_results(api, store, manifest, job)
+    assert counts['unavailable'] == 1 and counts['missing'] == 0 and api.reads == []
 
 
 def test_run_program_guards_remote_manifest_and_transfers_no_source_in_code(tmp_path):
@@ -203,6 +265,43 @@ def test_execution_timeout_still_collects_durable_checkpoints(tmp_path, monkeypa
     assert stopped and collected and api.transport.closed
     output = capsys.readouterr().out
     assert 'timed_out' in output and 'private websocket URL' not in output
+
+
+@pytest.mark.parametrize('listing', [RuntimeError('unavailable'), {'type': 'file', 'content': []}])
+def test_initial_result_listing_failure_stops_before_remote_generation(tmp_path, monkeypatch, listing):
+    _, job, _manifest = make_job(tmp_path)
+    session = types.SimpleNamespace(url='https://runtime.invalid', token='secret',
+                                    kernel_id=str(uuid.uuid4()), session_id=None)
+    class API:
+        class Transport:
+            def close(self): pass
+        transport = Transport()
+        def detect_contents_root(self, *_): return 'content'
+        def content(self, _path):
+            if isinstance(listing, Exception):
+                raise listing
+            return listing
+    api = API()
+    prepared = []
+    monkeypatch.setattr(run_colab, '_load_alias', lambda *_: types.SimpleNamespace(kernel_id=session.kernel_id))
+    monkeypatch.setattr(run_colab, '_discover_target', lambda *_: (session, object(), [], api))
+    monkeypatch.setattr(run_colab, 'source_bundle', lambda: ({}, {}, 'bundle'))
+    monkeypatch.setattr(run_colab, '_prepare_remote', lambda *a: prepared.append(True))
+    monkeypatch.setattr(run_colab, 'preflight_program', lambda *a: 'preflight')
+    monkeypatch.setattr(run_colab, 'run_program', lambda *a: pytest.fail('remote generation was invoked'))
+    class Runtime:
+        def __init__(self, *args, **kwargs): pass
+        def execute_code(self, code, timeout):
+            if code == 'preflight': return [{'output_type': 'stream', 'text': '__NT_PREFLIGHT_OK__\n'}]
+            return [{'output_type': 'stream', 'text': '__NT_PROBE_CLEANED__\n'}]
+        def stop(self): pass
+    runtime_module = types.ModuleType('colab_cli.runtime')
+    runtime_module.ColabRuntime = Runtime
+    monkeypatch.setitem(sys.modules, 'colab_cli.runtime', runtime_module)
+    args = types.SimpleNamespace(data_dir=tmp_path, job_id=job, session='alias', limit=1,
+                                 timeout=10.0, restart_kernel=False, dry_run=False)
+    assert run_colab.run(args) == 1
+    assert prepared == []
 
 
 def test_runner_imports_each_new_chunk_before_next_remote_step(tmp_path, monkeypatch, capsys):
@@ -264,6 +363,11 @@ def test_local_completed_result_seeds_empty_drive_before_remote_resume(tmp_path,
         results = {}
         saved_manifest = None
         def detect_contents_root(self, *_): return 'content'
+        def content(self, path):
+            if '/results' not in path or not self.results:
+                return None
+            return {'type': 'directory', 'content': [
+                {'name': chunk_id + '.json', 'type': 'file'} for chunk_id in self.results]}
         def read_file(self, path):
             if path.endswith('/manifest.json'):
                 return self.saved_manifest

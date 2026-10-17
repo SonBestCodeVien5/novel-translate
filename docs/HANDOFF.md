@@ -47,9 +47,22 @@
   kernel ID, `_own_kernel=False` không bị start reset; stop/destructor chỉ
   đóng channel, không shutdown/unassign. Các code path đã dùng chưa giải
   thích mất phiên cũ. Không coi audit mã là kiểm mất VM/new VM durability.
-- Chưa có inference hay result được nhập, vẫn **0/38**. Tiếp: hoàn tất kernel,
-  cài pins, mount Drive với consent user nếu cần, chạy chunk đầu và đo thời
-  gian thực rồi tiếp tục đúng manifest. Không cấp VM tự động.
+- User xác nhận dùng **VS Code Colab extension**; sau chạy cell, API thấy hai
+  kernel idle và duy nhất một notebook session VS Code. Main gắn alias vào
+  chính kernel ID được session này tham chiếu (không chọn theo thứ tự/latest),
+  `verify_target` đạt. Remote check: Tesla T4/CUDA true, Drive chưa mount,
+  transformers 5.18.0 / accelerate 1.15.0 / bitsandbytes chưa cài.
+- Đã cài pins thành công trên đúng kernel notebook VS Code: transformers
+  5.3.0 / accelerate 1.11.0 / bitsandbytes 0.48.2 (pip returncode 0, metadata
+  readback khớp). Helper tạm `/tmp/novel-ten-chapter-runtime-setup.py` capture
+  stdout/stderr pip, không tạo/restart VM; self-check URL/HTTP và snippet syntax đạt.
+- Drive mount đã gửi trên cùng kernel/session. Colab yêu cầu consent mới;
+  đã đưa link Google cho user, tiến trình helper đang chờ Enter sau khi user
+  báo cấp quyền xong. Không lưu consent URL/token trong docs. Helper mount
+  dùng SDK dfs_ephemeral, không đổi user account, không tự bấm consent.
+- Chưa có inference hay result được nhập, vẫn **0/38**. Tiếp: xác minh pins,
+  mount Drive với consent user nếu cần, chạy chunk đầu và đo thời gian thực
+  rồi tiếp tục đúng manifest. Không cấp VM tự động.
 - Yêu cầu dịch thử này ưu tiên trước R2. Không tạo job/manifest khác khi resume;
   dùng đúng IDs bên trên và kiểm checkpoint. Chỉ sau đủ 10 chương mới đánh dấu
   hoàn tất; không suy ra chất lượng hoặc full-book readiness từ preflight.

@@ -21,8 +21,8 @@ chương, benchmark tốc độ/chất lượng hay reader EPUB. P0 metrics chư
 repo; benchmark đã chốt provider Qwen3.5 và được giữ như lịch sử tại
 [archive/p0](archive/p0/README.md). Không cần chạy lại để dùng app.
 
-Phiên phát triển đang tạm dừng sau mốc này. Phiên mới bắt đầu từ
-[bàn giao và thứ tự làm tiếp](docs/HANDOFF.md); tiến độ/giới hạn nằm ở
+Trạng thái mới nhất và thứ tự làm tiếp nằm ở
+[bàn giao](docs/HANDOFF.md); tiến độ/giới hạn nằm ở
 [ROADMAP](docs/ROADMAP.md). Dữ liệu và backup local không được đẩy lên Git.
 
 ## Chạy local
@@ -43,6 +43,8 @@ Colab CLI extra `colab` cần Python 3.12+; xem [hướng dẫn v2](docs/COLAB_V
 Mở <http://127.0.0.1:8000>. Giữ bind loopback: bản này dành cho một người dùng
 local. Dữ liệu mặc định ở `data/` (được bỏ qua trong Git); biến môi trường
 `NOVEL_DATA_DIR` chọn thư mục local khác. Không đặt SQLite trên Drive.
+Khi dùng bàn phím, Tab đầu tiên hiện **Bỏ qua điều hướng**; Enter chuyển tới
+nội dung chính. Các trang có title riêng và nút lưu chunk được đọc kèm chương/chunk.
 
 ## Thử luồng P1
 

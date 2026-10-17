@@ -2,6 +2,29 @@
 
 Đọc sau WORKFLOW; trạng thái mới nhất ở mục đầu, các mục sau là lịch sử.
 
+## Điều hướng bàn phím và tên trang — 17/10/2026
+
+- Tiếp tục từ tối ưu review theo chương; chọn phần accessibility local trong
+  ROADMAP P3. Worker `gpt-6-luna/low` sửa template/CSS/test; main kiểm chứng.
+  Có title riêng từng trang, escape tên sách; skip link chỉ hiện khi focus và
+  chuyển tới main; các nút lưu/duyệt chunk có tên gồm chương/chunk.
+- Kiểm bản cuối: `.venv/bin/python -m pytest -q` ngoài sandbox đạt **122 passed,
+  23 subtests**, 3 warnings có sẵn, 27,02s. Test mới dùng HTMLParser/Jinja trên
+  fixture hai chunk, kiểm title escaped, skip target và tên nút riêng biệt.
+- Chromium headless profile riêng: Tab/Enter qua skip link trên trang chủ,
+  sách, real review, glossary và backup đạt; focus tới main. Lưu và duyệt chunk
+  chương hai bằng bàn phím giữ chương/bộ lọc/anchor, bản sửa hiện ở approved.
+  MCP browser bị profile đang dùng; dùng Playwright đã cài với profile riêng,
+  không đóng phiên browser khác. Fixture/server chỉ ở `/tmp/novel-a11y-check`,
+  server kiểm tra đã dừng; không dùng dữ liệu thật hoặc Colab.
+- Chưa có native EPUB reader/EPUBCheck hoặc screen reader trên máy; không coi
+  accessibility tree/HTML test là kiểm screen reader. Việc kiểm trực tiếp cần
+  máy có công cụ phù hợp. Credential CLI cũ vẫn cần chủ tài khoản xử lý trước
+  lần chạy Colab tiếp. Không mở full book, benchmark hay crawler.
+- Bước tiếp theo: kiểm EPUB native và screen reader; nếu cần dịch thật thì
+  xác thực CLI an toàn và chốt smoke nhỏ có runtime phù hợp trước full book.
+  Thay đổi `AGENTS.md` có sẵn được giữ ngoài commit tính năng.
+
 ## Tải sách và review theo chương — 17/10/2026
 
 - User mở lại dự án và chọn tối ưu local theo chương, giữ validation manifest

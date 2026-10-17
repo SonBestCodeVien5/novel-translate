@@ -26,8 +26,9 @@ hoàn thiện app trên dữ liệu đã có; P4 crawling được hoãn, không
 2. Trang sách P1 và review v2 đã giới hạn tải chunk/result/revision theo chương;
    các trang phụ lấy metadata sách. Manifest/source v2 vẫn validate đầy đủ.
    Chỉ mở thêm cache manifest hoặc chia nhỏ một chương nếu có nhu cầu và phép đo.
-3. Thử mở EPUB bằng reader native và hoàn thiện kiểm tra accessibility, gồm bàn
-   phím và screen reader.
+3. UI đã có title theo trang, skip link tới main và tên nút lưu theo chương/chunk;
+   Chromium smoke bàn phím đạt trên fixture, gồm lưu/duyệt giữ trạng thái review.
+   Còn thử EPUB bằng reader native và kiểm screen reader trên máy có công cụ.
 4. Chỉ kiểm durability sau mất VM nếu có runtime phù hợp và được cho phép; trước
    full book, chạy smoke nhỏ có chủ đích. Không tự dịch toàn bộ sách.
 

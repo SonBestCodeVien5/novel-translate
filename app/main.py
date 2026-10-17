@@ -197,13 +197,21 @@ def create_app(data_dir: Path | None = None):
 
     @app.get('/books/{book_id}')
     async def book(request: Request, book_id: str):
-        data = app.state.store.get_book(book_id)
+        chapters = app.state.store.book_chapters(book_id)
+        try:
+            chapter = int(request.query_params.get('chapter', chapters[0]['ordinal']))
+        except ValueError:
+            raise DomainError('Chapter ordinal không hợp lệ.')
+        data = app.state.store.get_book(book_id, chapter)
         data['real_jobs'] = app.state.store.list_real_jobs(book_id)
-        return page(request, 'book.html', book=data)
+        ordinals = [item['ordinal'] for item in data['chapters']]
+        return page(request, 'book.html', book=data, selected_chapter=chapter,
+                    previous_chapter=ordinals[ordinals.index(chapter) - 1] if chapter != ordinals[0] else None,
+                    next_chapter=ordinals[ordinals.index(chapter) + 1] if chapter != ordinals[-1] else None)
 
     @app.get('/books/{book_id}/glossary')
     async def glossary(request: Request, book_id: str):
-        return page(request, 'glossary.html', book=app.state.store.get_book(book_id),
+        return page(request, 'glossary.html', book=app.state.store.get_book_overview(book_id),
                     glossary=app.state.store.get_glossary(book_id))
 
     def glossary_form(data):
@@ -273,17 +281,18 @@ def create_app(data_dir: Path | None = None):
         data = await form(request)
         if app.state.store.chunk_book(chunk_id) != book_id:
             raise DomainError('Chunk not found for this book.', 404)
+        chapter = app.state.store.chunk_chapter_ordinal(chunk_id)
         try:
             revision = int(str(data.get('revision', '')))
         except ValueError:
             raise DomainError('Revision không hợp lệ.')
         app.state.store.save_revision(chunk_id, str(data.get('text', '')), revision, str(data.get('base_result_hash', '')) or None)
-        return RedirectResponse(f'/books/{book_id}#chunk-{chunk_id}', 303)
+        return RedirectResponse(f'/books/{book_id}?chapter={chapter}#chunk-{chunk_id}', 303)
 
     @app.post('/books/{book_id}/real-jobs')
     async def create_real_job(request: Request, book_id: str):
         await form(request)
-        app.state.store.get_book(book_id)
+        app.state.store.get_book_overview(book_id)
         from app.real_bundles import QWEN35, MODELS, default_snapshot, load_tokenizer
         try:
             tokenizer, commit = await run_in_threadpool(load_tokenizer, QWEN35, MODELS[QWEN35])
@@ -310,14 +319,15 @@ def create_app(data_dir: Path | None = None):
     @app.get('/books/{book_id}/real-jobs/{job_id}')
     async def real_review(request: Request, book_id: str, job_id: str):
         own_real_job(book_id, job_id)
-        job = app.state.store.get_real_job(job_id)
-        chapters = sorted({item['chunk']['chapter_ordinal'] for item in job['chunks']})
+        chapter_info = app.state.store.book_chapters(book_id)
+        chapters = [c['ordinal'] for c in chapter_info]
         try:
             chapter = int(request.query_params.get('chapter', chapters[0]))
         except ValueError:
             raise DomainError('Chapter ordinal không hợp lệ.')
         if chapter not in chapters:
             raise DomainError('Chapter ordinal không tồn tại.', 404)
+        job = app.state.store.get_real_job(job_id, chapter)
         review_filter = request.query_params.get('filter', 'all')
         if review_filter not in {'all', 'pending', 'unreviewed', 'approved'}:
             raise DomainError('Bộ lọc review không hợp lệ.')
@@ -328,12 +338,13 @@ def create_app(data_dir: Path | None = None):
                     review_filter == 'pending' and result is None or
                     review_filter == 'unreviewed' and result is not None and not approved or
                     review_filter == 'approved' and approved)
-        job['chunks'] = [item for item in job['chunks'] if item['chunk']['chapter_ordinal'] == chapter and matches(item)]
+        job['chunks'] = [item for item in job['chunks'] if matches(item)]
         from app.colab_control import available_sessions, status_job
         aliases = available_sessions(app.state.store.data_dir)
         colab_status = status_job(app.state.store.data_dir, job_id)
-        return page(request, 'real_job.html', book=app.state.store.get_book(book_id),
+        return page(request, 'real_job.html', book=app.state.store.get_book_overview(book_id),
                     glossary=app.state.store.get_glossary(book_id), job=job, chapters=chapters,
+                    chapter_names={c['ordinal']: c['title'] for c in chapter_info},
                     chapter=chapter, review_filter=review_filter,
                     colab_aliases=aliases, colab_status=colab_status,
                     previous_chapter=chapters[chapters.index(chapter) - 1] if chapter != chapters[0] else None,
@@ -413,7 +424,7 @@ def create_app(data_dir: Path | None = None):
                     report.append({'filename': filename, 'status': status})
                 except DomainError as exc:
                     report.append({'filename': filename, 'status': 'rejected', 'message': str(exc)})
-            return page(request, 'result_import.html', book=app.state.store.get_book(book_id), job_id=job_id,
+            return page(request, 'result_import.html', book=app.state.store.get_book_overview(book_id), job_id=job_id,
                         report=report, imported=sum(x['status'] == 'imported' for x in report),
                         duplicates=sum(x['status'] == 'duplicate' for x in report),
                         rejected=sum(x['status'] == 'rejected' for x in report))
@@ -430,16 +441,10 @@ def create_app(data_dir: Path | None = None):
         except ValueError:
             raise DomainError('Revision không hợp lệ.')
         approve = data.get('approved') == 'true'
-        try:
-            chapter = int(str(data.get('chapter', '')))
-        except ValueError:
-            chapter = 0
         review_filter = str(data.get('filter', 'all'))
         if review_filter not in {'all', 'pending', 'unreviewed', 'approved'}:
             review_filter = 'all'
-        chapters = {chunk['chapter_ordinal'] for chunk in app.state.store.get_real_manifest(job_id)['chunks']}
-        if chapter not in chapters:
-            chapter = min(chapters) if chapters else 0
+        chapter = app.state.store.real_chunk_chapter_ordinal(job_id, chunk_id)
         app.state.store.save_real_revision(job_id, chunk_id, str(data.get('text', '')), revision,
                                            str(data.get('base_result_hash', '')) or None, approve)
         return RedirectResponse(f'/books/{book_id}/real-jobs/{job_id}?chapter={chapter}&filter={review_filter}#chunk-{chunk_id}', 303)

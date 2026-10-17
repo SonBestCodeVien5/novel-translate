@@ -236,14 +236,20 @@ class Store:
     def _latest_revision(db, chunk_id):
         return db.execute('SELECT * FROM revisions WHERE chunk_id=? ORDER BY revision DESC LIMIT 1', (chunk_id,)).fetchone()
 
-    def get_book(self, book_id):
+    def get_book(self, book_id, chapter_ordinal=None):
         with self._connect() as db:
             book = self._book(db, book_id)
-            latest = self._latest_job(db, book_id)
+            latest = db.execute('SELECT id FROM jobs WHERE book_id=? ORDER BY sequence DESC LIMIT 1', (book_id,)).fetchone()
             output = {'id': book['id'], 'title': book['title'], 'chapters': [], 'jobs': []}
-            for chapter in db.execute('SELECT * FROM chapters WHERE book_id=? ORDER BY ordinal', (book_id,)):
+            for chapter in db.execute('''SELECT ch.id,ch.title,ch.ordinal,COUNT(c.id) chunk_count
+                FROM chapters ch LEFT JOIN chunks c ON c.chapter_id=ch.id WHERE ch.book_id=?
+                GROUP BY ch.id ORDER BY ch.ordinal''', (book_id,)):
                 entry = {key: chapter[key] for key in ('id', 'title', 'ordinal')}
                 entry['chunks'] = []
+                entry['chunk_count'] = chapter['chunk_count']
+                if chapter_ordinal is not None and chapter['ordinal'] != chapter_ordinal:
+                    output['chapters'].append(entry)
+                    continue
                 for chunk in db.execute('SELECT * FROM chunks WHERE chapter_id=? ORDER BY ordinal', (chapter['id'],)):
                     revision = self._latest_revision(db, chunk['id'])
                     result = db.execute('SELECT * FROM results WHERE job_id=? AND chunk_id=?',
@@ -256,11 +262,35 @@ class Store:
                         'revision_base_result_hash': revision['base_result_hash'] if revision else None,
                         'stale': bool(revision and revision['base_result_hash'] != (result['checksum'] if result else None))})
                 output['chapters'].append(entry)
-            for job in db.execute('SELECT * FROM jobs WHERE book_id=? ORDER BY sequence DESC', (book_id,)):
+            if chapter_ordinal is not None and not any(c['ordinal'] == chapter_ordinal for c in output['chapters']):
+                raise DomainError('Chapter ordinal không tồn tại.', 404)
+            total_chunks = sum(ch['chunk_count'] for ch in output['chapters'])
+            for job in db.execute('SELECT id,status FROM jobs WHERE book_id=? ORDER BY sequence DESC', (book_id,)):
                 completed = db.execute('SELECT COUNT(*) FROM results WHERE job_id=?', (job['id'],)).fetchone()[0]
                 output['jobs'].append({'id': job['id'], 'status': job['status'], 'completed': completed,
-                                       'total': len(load_json(job['manifest'].encode())['chunks'])})
+                    'total': total_chunks})
             return output
+
+    def book_chapters(self, book_id):
+        with self._connect() as db:
+            self._book(db, book_id)
+            return [dict(row) for row in db.execute('''SELECT ch.id,ch.title,ch.ordinal,COUNT(c.id) chunk_count
+                FROM chapters ch LEFT JOIN chunks c ON c.chapter_id=ch.id WHERE ch.book_id=?
+                GROUP BY ch.id ORDER BY ch.ordinal''', (book_id,))]
+
+    def get_book_overview(self, book_id):
+        with self._connect() as db:
+            book = self._book(db, book_id)
+            chapters = [dict(row) for row in db.execute('''SELECT ch.id,ch.title,ch.ordinal,
+                COUNT(c.id) chunk_count FROM chapters ch LEFT JOIN chunks c ON c.chapter_id=ch.id
+                WHERE ch.book_id=? GROUP BY ch.id ORDER BY ch.ordinal''', (book_id,))]
+            jobs = []
+            total_chunks = sum(ch['chunk_count'] for ch in chapters)
+            for job in db.execute('SELECT id,status FROM jobs WHERE book_id=? ORDER BY sequence DESC', (book_id,)):
+                jobs.append({'id': job['id'], 'status': job['status'],
+                    'completed': db.execute('SELECT COUNT(*) FROM results WHERE job_id=?', (job['id'],)).fetchone()[0],
+                    'total': total_chunks})
+            return {'id': book['id'], 'title': book['title'], 'chapters': chapters, 'jobs': jobs}
 
     def create_job(self, book_id):
         with self._connect() as db:
@@ -444,21 +474,37 @@ class Store:
             self._verify_real_source(book, chapters, manifest)
             return manifest
 
-    def get_real_job(self, job_id):
+    def get_real_job(self, job_id, chapter_ordinal=None):
         manifest = self.get_real_manifest(job_id)
         with self._connect() as db:
             job = db.execute('SELECT status FROM real_jobs WHERE id=?', (job_id,)).fetchone()
+            chapters = [dict(row) for row in db.execute('''SELECT ch.ordinal,ch.title,COUNT(c.chunk_id) chunk_count
+                FROM real_chunks c JOIN chapters ch ON ch.id=c.chapter_id WHERE c.job_id=?
+                GROUP BY ch.ordinal,ch.title ORDER BY ch.ordinal''', (job_id,))]
+            if chapter_ordinal is not None and not any(c['ordinal'] == chapter_ordinal for c in chapters):
+                raise DomainError('Chapter ordinal không tồn tại.', 404)
             chunks = []
             for row in db.execute('''SELECT c.payload,r.payload AS result FROM real_chunks c
                                      LEFT JOIN real_results r USING(job_id,chunk_id)
-                                     WHERE c.job_id=? ORDER BY c.chapter_ordinal,c.ordinal''', (job_id,)):
+                                     WHERE c.job_id=? AND (? IS NULL OR c.chapter_ordinal=?)
+                                     ORDER BY c.chapter_ordinal,c.ordinal''', (job_id, chapter_ordinal, chapter_ordinal)):
                 chunk = load_json(row['payload'].encode())
                 result = load_json(row['result'].encode()) if row['result'] else None
                 rev = self._latest_real_revision(db, job_id, chunk['chunk_id'])
                 chunks.append({'chunk': chunk, 'result': result, 'revision': dict(rev) if rev else None,
                                'stale': bool(rev and rev['base_result_hash'] != (result['checksum'] if result else None))})
-            return {'id': job_id, 'status': job['status'], 'completed': sum(c['result'] is not None for c in chunks),
-                    'total': len(chunks), 'chunks': chunks, 'manifest': manifest}
+            total = db.execute('SELECT COUNT(*) FROM real_chunks WHERE job_id=?', (job_id,)).fetchone()[0]
+            completed = db.execute('SELECT COUNT(*) FROM real_results WHERE job_id=?', (job_id,)).fetchone()[0]
+            return {'id': job_id, 'status': job['status'], 'completed': completed,
+                    'total': total, 'chunks': chunks, 'manifest': manifest, 'chapters': chapters}
+
+    def real_chunk_chapter_ordinal(self, job_id, chunk_id):
+        with self._connect() as db:
+            row = db.execute('SELECT chapter_ordinal FROM real_chunks WHERE job_id=? AND chunk_id=?',
+                             (job_id, chunk_id)).fetchone()
+            if row is None:
+                raise DomainError('Chunk not found for this job.', 404)
+            return row['chapter_ordinal']
 
     @staticmethod
     def _latest_real_revision(db, job_id, chunk_id):
@@ -487,6 +533,14 @@ class Store:
             if row is None:
                 raise DomainError('Chunk not found.', 404)
             return row['book_id']
+
+    def chunk_chapter_ordinal(self, chunk_id):
+        with self._connect() as db:
+            row = db.execute('SELECT ch.ordinal FROM chunks c JOIN chapters ch ON c.chapter_id=ch.id WHERE c.id=?',
+                             (chunk_id,)).fetchone()
+            if row is None:
+                raise DomainError('Chunk not found.', 404)
+            return row['ordinal']
 
     def save_real_revision(self, job_id, chunk_id, text, base_revision, base_result_hash, approved):
         if (type(text) is not str or not text.strip() or '\x00' in text or

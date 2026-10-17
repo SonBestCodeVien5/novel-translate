@@ -1,6 +1,39 @@
-# Bàn giao phiên — 16/10/2026 (Asia/Bangkok)
+# Bàn giao phiên — 17/10/2026 (Asia/Bangkok)
 
 Đọc sau WORKFLOW; trạng thái mới nhất ở mục đầu, các mục sau là lịch sử.
+
+## Tải sách và review theo chương — 17/10/2026
+
+- User mở lại dự án và chọn tối ưu local theo chương, giữ validation manifest
+  đầy đủ. Một worker `gpt-6-luna/low` triển khai core/routes/templates/tests;
+  main tích hợp, kiểm chứng và cập nhật tài liệu. Không chạy Colab, tạo job thật
+  trên dữ liệu người dùng, đổi schema hay mở benchmark/crawler.
+- P1 mặc định chương đầu, chọn theo tên/số thứ tự và trước/tiếp; chỉ tải
+  chunk/result/revision chương chọn. Review v2 cũng truy vấn theo chương,
+  giữ tổng tiến độ toàn job và bộ lọc. Lưu quay lại chương/anchor của chunk,
+  xác định chương từ DB local. Caller không truyền chương vẫn lấy đủ cho export/CLI.
+- Các trang glossary/review thật/bulk report và kiểm sách trước tạo job dùng
+  overview không tải nội dung chunk. Manifest/source v2 vẫn được kiểm toàn bộ;
+  chưa cache manifest hay chia trang bên trong một chương.
+- Đo cùng fixture giả lập 390 chương/3.120 chunk, chưa có job P1: ba GET bằng
+  TestClient ngoài sandbox, HTML **5.853.605 → 37.346 byte**, số article
+  **3.120 → 8**; trung vị **174,16 → 19,10 ms** ở bản cuối (suite chạy đồng
+  thời khi đo sau; lượt trước là 14,03 ms). Đây là phép đo local giới hạn,
+  không phải benchmark dữ liệu thật, chất lượng hay tốc độ model.
+- Playwright keyboard smoke trên fixture riêng hai chương: chọn chương hai,
+  lưu P1 về đúng chương/anchor; review v2 chọn chương hai + unreviewed, lưu
+  giữ chương/bộ lọc/anchor và progress 2/2. Kiểm lại selector chương sau sửa
+  lỗi reset về chương đầu đạt. Chưa kiểm screen reader.
+- Kiểm bản cuối: `.venv/bin/python -m pytest -q` ngoài sandbox đạt **121 passed,
+  23 subtests**, 3 warnings có sẵn, 25,26s; targeted worker 18 passed/11 subtests,
+  sau sửa selector test navigation 1 passed. SQL trace/route spies kiểm tải
+  theo chương, full default cho caller cũ, stale approval và save redirect.
+  Markdown local links và `git diff --check` đạt. TestClient trong sandbox
+  timeout; không coi lượt đó là test đạt.
+- Thay đổi `AGENTS.md` có sẵn được giữ riêng, không gộp vào commit tính năng.
+  Credential CLI cũ vẫn cần chủ tài khoản xử lý trước lần dùng Colab tiếp;
+  xem mục lịch sử bên dưới. Ưu tiên sau đợt này: native EPUB reader/accessibility;
+  dịch thật một lượt nhỏ chỉ khi có yêu cầu và runtime phù hợp.
 
 ## Tạm dừng và tiếp nối phiên mới — 16/10/2026
 

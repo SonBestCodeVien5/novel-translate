@@ -23,9 +23,9 @@ hoàn thiện app trên dữ liệu đã có; P4 crawling được hoãn, không
 
 1. Xử lý an toàn credential Colab CLI cũ đã lộ trong log: thu hồi/đăng nhập lại
    khi phù hợp và giữ SDK logging bị tắt.
-2. Tối ưu tải trang sách dài: hiện trang P1 có thể render toàn bộ 3.929 chunk;
-   giảm dữ liệu render theo trang/chương. Rà soát việc `real` backend vẫn load
-   manifest đầy đủ, tìm cách giảm chi phí mà không đổi contract.
+2. Trang sách P1 và review v2 đã giới hạn tải chunk/result/revision theo chương;
+   các trang phụ lấy metadata sách. Manifest/source v2 vẫn validate đầy đủ.
+   Chỉ mở thêm cache manifest hoặc chia nhỏ một chương nếu có nhu cầu và phép đo.
 3. Thử mở EPUB bằng reader native và hoàn thiện kiểm tra accessibility, gồm bàn
    phím và screen reader.
 4. Chỉ kiểm durability sau mất VM nếu có runtime phù hợp và được cho phép; trước

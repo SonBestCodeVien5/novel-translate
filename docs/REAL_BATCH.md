@@ -125,8 +125,10 @@ revision hiện hành đã duyệt. Progress là số result đã nhập local, 
 hiệu runtime đang chạy.
 
 Review hiển thị một chương mỗi lần, có chương trước/tiếp và bộ lọc chưa có
-result/chưa duyệt/đã duyệt. Lưu bản sửa giữ chương/bộ lọc đang xem. Backend vẫn
-validate manifest toàn job; đây là giới hạn phần hiển thị, không phải DB pagination.
+result/chưa duyệt/đã duyệt. Lưu bản sửa giữ chương/bộ lọc đang xem. Backend chỉ
+tải chunk/result/revision của chương chọn; tổng tiến độ vẫn tính toàn job.
+Manifest và source vẫn được đọc/validate đầy đủ mỗi lần; chưa có cache manifest
+hoặc phân trang bên trong một chương dài.
 Ngoài TXT, **EPUB chính thức** dùng cùng guard đủ chunk và bản sửa hiện hành đã
 duyệt. Xem [profile EPUB bảo toàn mapping](EPUB_EXPORT.md) và
 [backup/restore DB cùng assets](BACKUP.md).

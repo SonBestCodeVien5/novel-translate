@@ -194,6 +194,10 @@ Schema có `schema_version`; validator từ chối version/field lạ, kiểu sa
 - Review hiển thị nguồn và đích, trạng thái thiếu/stale, lưu revision có kiểm tra base revision.
 - Review v2 hiển thị một chương mỗi lần, lọc thiếu result/chưa duyệt/đã duyệt;
   tổng tiến độ vẫn tính toàn job. Đổi trang/lọc hoặc lưu không thay selection job.
+- Trang sách P1 mặc định mở chương đầu; chọn theo tên/số thứ tự hoặc trước/tiếp.
+  P1 và review v2 chỉ hydrate chunk/result/revision chương chọn; caller không
+  truyền chương vẫn nhận đầy đủ cho CLI/export. Các trang phụ dùng metadata
+  sách; manifest/source v2 vẫn được validate toàn bộ, không có cache.
 - Nhập nhiều result v2 theo job bằng nhiều JSON hoặc một ZIP: kiểm container và
   giới hạn trước, sau đó nhập độc lập từng chunk qua validator hiện có. Báo riêng
   imported/duplicate/rejected; một payload lỗi không làm mất chunk hợp lệ khác.

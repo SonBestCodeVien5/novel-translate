@@ -52,7 +52,9 @@ local. Dữ liệu mặc định ở `data/` (được bỏ qua trong Git); bi�
    gửi form vì mã CSRF của phiên thay đổi.
 3. Tải manifest JSON hoặc nhập result JSON qua form. Result phải đúng snapshot,
    schema và checksum; nhập trùng là no-op, xung đột được báo lỗi.
-4. Sửa từng chunk và lưu. Hai tab sửa từ cùng revision sẽ báo conflict;
+4. Chọn chương bằng danh sách tên/số thứ tự hoặc nút chương trước/tiếp; trang
+   mặc định mở chương đầu và chỉ tải chunk của chương đang xem. Sửa từng chunk
+   và lưu sẽ quay lại đúng chương. Hai tab sửa từ cùng revision sẽ báo conflict;
    kết quả máy đến sau không ghi đè bản sửa.
 5. Xuất TXT sau khi đủ kết quả, hoặc chọn xuất nháp có đánh dấu phần thiếu.
    Thứ tự chương/chunk được giữ khi xuất, ưu tiên bản sửa tay.

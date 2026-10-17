@@ -6,7 +6,10 @@ Repo có luồng P1 giả riêng và batch/review v2 cho Qwen3.5: tạo manifest
 notebook/CLI, nhập một/nhiều result, sửa/duyệt theo chương, xuất TXT/EPUB,
 glossary theo sách và backup/restore. Live smoke T4 đã chạy fixture 2 chương/2
 chunk và resume sau restart kernel cùng VM; chưa kiểm mất VM/new VM, full 390
-chương, benchmark tốc độ/chất lượng hay native EPUB reader.
+chương, benchmark tốc độ/chất lượng hay native EPUB reader. Hướng sản phẩm được
+chốt là app đọc local nhẹ: raw/dịch/song ngữ là luồng chính, review tiếp tục để
+cải thiện dần. UI hiện tại vẫn thiên về review; reader và reading progress là
+backlog chưa triển khai. Xem [đánh giá hướng đi](DIRECTION_REVIEW.md).
 Trạng thái vận hành mới nhất nằm ở [HANDOFF.md](HANDOFF.md). [P1.md](P1.md) ghi bằng chứng/giới hạn
 cụ thể. Nội dung bên dưới mô tả hướng thiết kế, không cam kết chất lượng.
 
@@ -21,18 +24,22 @@ chỉ thị làm việc, và không cần nạp toàn bộ vào mọi nhiệm v�
 
 ## Mục tiêu sản phẩm
 
-Xây dựng công cụ cá nhân hỗ trợ nhập tiểu thuyết, tách chương, dịch bằng LLM,
-review/sửa bản dịch và xuất sách tiếng Việt. Người dùng đã xác nhận EN → VI,
-ngân sách 0 đồng, Colab miễn phí theo phiên, văn phong tiếng Việt tự nhiên giữ
-giọng nhân vật/tên riêng, tối đa 2 lần thử/model và tổng 4 phiên ngày 14/10/2026.
+Xây dựng app đọc truyện cá nhân local nhẹ, hỗ trợ đọc raw, bản dịch và song ngữ;
+dịch bằng LLM, glossary, review/sửa bản dịch và export là các công cụ để cải
+thiện nội dung dần. Người dùng đã xác nhận EN → VI, ngân sách 0 đồng, Colab miễn
+phí theo phiên, văn phong tiếng Việt tự nhiên giữ giọng nhân vật/tên riêng.
+Mốc tối đa 2 lần thử/model và tổng 4 phiên ngày 14/10/2026 thuộc benchmark P0
+lịch sử, không giới hạn các phiên dịch sách.
 
 Giá trị mong muốn là giảm thời gian dịch và sửa mà vẫn giữ nghĩa, tên riêng,
 thuật ngữ, tính cách và xưng hô nhất quán. Giữ bản gốc và sửa tay là yêu cầu
 bắt buộc; bản dịch máy luôn cần kiểm tra, nhất là thiếu đoạn hoặc sai ý.
 
-Phạm vi ban đầu là một người dùng: TXT trước, EPUB sau, glossary và review đủ
-dùng. User đã có dữ liệu và hoãn crawling ngày 16/10/2026; tập trung hoàn thiện
-app. Các nguồn nhập khác và bộ nhớ xuyên chương chỉ mở qua ROADMAP.
+Phạm vi là một người dùng: TXT trước, EPUB sau. Raw phải đọc được không cần job;
+bản dịch chọn theo job rõ ràng và partial result vẫn đọc được. Không yêu cầu
+duyệt hết mới đọc. Review/glossary tiếp tục có vai trò cải thiện bản dịch; app
+hiện có review UI nhưng chưa có dedicated reader hay reading progress. User đã
+có dữ liệu và hoãn crawling; xem ROADMAP cho thứ tự tiếp theo.
 
 ## Kiến trúc đã chọn cho bản đầu
 

@@ -2,6 +2,33 @@
 
 Đọc sau WORKFLOW; trạng thái mới nhất ở mục đầu, các mục sau là lịch sử.
 
+## Hướng sản phẩm: reader local nhẹ — 17/10/2026
+
+- Phạm vi lượt này chỉ rà soát và cập nhật tài liệu; không đổi code/schema/data,
+  không chạy GPU hay app. Main chạy targeted suite bằng timeout 60s:
+  `.venv/bin/python -m pytest -q tests/test_core.py tests/test_real_bundles.py tests/test_real_runner.py tests/test_real_store.py tests/test_glossary.py -k 'not test_glossary_ui_csrf_edit_remove_and_escaped_values'`;
+  **69 passed, 11 subtests, 1 deselected** (web), 1 warning Starlette/httpx,
+  10.56s. Code không đổi. Không chạy full suite, browser hay GPU trong lượt này.
+- Main kiểm 135 link local trong 8 file Markdown của task, đối chiếu đủ 25
+  commit trước rà soát trong báo cáo và chạy `git diff --check`: đạt.
+- Ưu tiên mới: R1 reader raw/dịch/song ngữ theo job được chọn tường minh, partial
+  đọc được và nối sang review; R2 nhớ vị trí; R3 preflight manifest/kích thước/
+  chi phí rồi mới kiểm nhiều phiên hoặc VM mới trên fixture khi runtime cho phép;
+  R4 nối glossary/review và mẫu lỗi có bằng chứng. R1/R2 chưa triển khai; R3 còn
+  kiểm; R4 đã có glossary/review một phần. Reader không bị gate bởi benchmark P0.
+- Giữ revision, review và guard approval hiện hành cho official export; không
+  bắt duyệt hết mới đọc. Một/vài phiên cho cả sách là mong muốn chưa cam kết do
+  quota/runtime. Job toàn sách tiếp tục `--limit`/resume; manifest contract
+  không đổi, chưa thêm subset/retranslate. Không mở crawler/provider rewrite/RAG.
+- Mốc 4 phiên/2 thử mỗi model thuộc benchmark P0 lịch sử; ngân sách vận hành vẫn
+  0 đồng. Native EPUB reader và screen reader là kiểm tra còn mở, không còn là
+  bước bắt buộc trước reader local. Code findings chi tiết nằm ở
+  [DIRECTION_REVIEW](DIRECTION_REVIEW.md); hợp đồng tương lai ở [PLAN](PLAN.md),
+  thứ tự/doD ở [ROADMAP](ROADMAP.md).
+- `AGENTS.md` đang có thay đổi sẵn ngoài task; giữ nguyên và loại khỏi commit.
+- Phép thử Colab tiếp theo cần chủ tài khoản xử lý credential CLI cũ, xác thực/
+  mount Drive và cấp runtime phù hợp; các task local không cần chờ bước này.
+
 ## Điều hướng bàn phím và tên trang — 17/10/2026
 
 - Tiếp tục từ tối ưu review theo chương; chọn phần accessibility local trong

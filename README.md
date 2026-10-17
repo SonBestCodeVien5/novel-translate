@@ -1,14 +1,18 @@
 # Novel Translate
 
-Ứng dụng cá nhân EN → VI, dữ liệu và SQLite ở máy local; Colab nhận/trả batch
-bằng file theo phiên. Ngân sách đã chốt: **0 đồng**.
+App đọc truyện cá nhân EN → VI, dữ liệu và SQLite ở máy local; Colab nhận/trả
+batch bằng file theo phiên. Mục tiêu là đọc raw/bản dịch/song ngữ nhẹ tại máy;
+review và glossary tiếp tục giúp cải thiện bản dịch dần. Ngân sách đã chốt:
+**0 đồng**.
 
 P1 vẫn có luồng TXT với **provider giả** để chẩn đoán import, checkpoint, review
 và export; nhãn `FAKE` không phải bản dịch thật. Hiện đã có luồng batch thật v2
 cho provider `Qwen/Qwen3.5-4B`: tạo job trong app local, chạy/resume manifest
 bằng notebook Colab trên Drive, nhập kết quả về local, review/duyệt theo
 job và export TXT hoặc EPUB. Có glossary, nhập nhiều result và backup/restore.
-P1 fake và batch thật là hai luồng riêng.
+P1 fake và batch thật là hai luồng riêng. Trang P1 hiện cho đọc raw khi chưa có
+job; app chưa có trang đọc riêng hay nhớ vị trí đọc. Trang đọc riêng và vị trí
+đọc là backlog, chưa triển khai.
 Xem [hướng dẫn sử dụng batch](docs/REAL_BATCH.md) và
 [hợp đồng/trạng thái tích hợp](docs/INTEGRATION.md).
 
@@ -20,6 +24,11 @@ generation giả. Live smoke T4 ngày 16/10/2026 đạt trên fixture 2 chương
 chương, benchmark tốc độ/chất lượng hay reader EPUB. P0 metrics chưa được lưu trong
 repo; benchmark đã chốt provider Qwen3.5 và được giữ như lịch sử tại
 [archive/p0](archive/p0/README.md). Không cần chạy lại để dùng app.
+
+Mốc 4 phiên/2 lần thử mỗi model là ngân sách benchmark P0 lịch sử, không phải
+trần mọi lượt dịch sách; số phiên thực tế tùy quota/runtime. Hướng reader và
+backlog: [ROADMAP](docs/ROADMAP.md); đánh giá hiện trạng:
+[DIRECTION_REVIEW](docs/DIRECTION_REVIEW.md).
 
 Trạng thái mới nhất và thứ tự làm tiếp nằm ở
 [bàn giao](docs/HANDOFF.md); tiến độ/giới hạn nằm ở

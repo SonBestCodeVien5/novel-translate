@@ -1,4 +1,4 @@
-# Kế hoạch triển khai app dịch novel
+# Kế hoạch app đọc và dịch novel
 
 Trạng thái: P1 provider giả đã triển khai/kiểm thử; user xác nhận đã chấm và
 chọn `Qwen/Qwen3.5-4B` làm provider tích hợp ngày 15/10/2026. Báo cáo/số đo
@@ -19,13 +19,37 @@ trong [P1.md](P1.md).
 
 ## 1. Mục tiêu và phạm vi
 
-- App một người dùng: nhập sách, dịch theo chương, sửa bản dịch, xuất sách.
+- App đọc truyện local nhẹ là luồng chính: người dùng mở và đọc raw, bản dịch,
+  hoặc song ngữ; không cần tạo job dịch để đọc raw. Dịch theo chương/manifest,
+  sửa bản dịch và review vẫn là công cụ hỗ trợ cải thiện dần, không phải điều
+  kiện để đọc.
 - Máy Dell Vostro giữ dữ liệu và giao diện; Colab cung cấp GPU theo phiên tương tác.
-- EN → VI, ngân sách 0 đồng, chạy Colab miễn phí theo phiên đã được người dùng xác nhận ngày 14/10/2026; user chọn `Qwen/Qwen3.5-4B` làm provider tích hợp ngày 15/10/2026.
-- MVP hỗ trợ TXT trước, EPUB sau; crawler một website nằm ở P4, không bị bỏ khỏi mục tiêu.
+- EN → VI, ngân sách 0 đồng; Colab miễn phí dùng một hoặc nhiều phiên theo
+  quota/runtime thực tế. User chọn `Qwen/Qwen3.5-4B` làm provider tích hợp ngày
+  15/10/2026. Mốc tối đa 2 lần thử/model và tổng 4 phiên thuộc kế hoạch
+  benchmark P0 lịch sử, không phải trần mọi phiên dịch sách.
+- MVP hỗ trợ TXT trước, EPUB sau. Crawler P4 đang hoãn vì user đã có dữ liệu;
+  crawler không phải điều kiện để hoàn thành reader local.
 - Giữ nguyên bản gốc, thứ tự chương, bản dịch máy và lịch sử sửa tay.
 - Không có React, Celery, Redis, RAG, Docker, nhiều người dùng hay dịch vụ Colab luôn bật trong MVP.
 - Không cam kết tốc độ/chất lượng trước khi đo trên sách và phần cứng thực tế.
+
+### Hợp đồng reader tương lai (chưa triển khai)
+
+- Đọc raw không tạo job và không cần network, tokenizer, GPU hay runtime dịch.
+- Người dùng chọn rõ job dịch cần đọc; không tự chọn job mới nhất, ghép chunk
+  P1/v1 với v2, hoặc trộn kết quả từ các job khác nhau.
+- Trong job đã chọn, đọc revision hiện hành trước bản máy khi có revision; giữ
+  sửa tay và cảnh báo rõ cho đoạn chưa có result, chưa review hoặc stale. Job
+  partial vẫn đọc được và đoạn còn thiếu phải được báo rõ.
+- Đọc không thay đổi trạng thái approved. Từ đoạn đọc có thể mở review đúng
+  chunk/job để sửa hoặc duyệt.
+- Resume translation tiếp tục cùng manifest bất biến. Việc nhớ vị trí đọc độc
+  lập với review và checkpoint dịch: SQLite local lưu một vị trí gần nhất mỗi
+  sách gồm chapter ID, lựa chọn raw/job/mode và anchor thuộc đúng job nếu có;
+  không cam kết đồng bộ vị trí pixel.
+- Đây là hướng thiết kế, không phải hành vi hiện có. Xem
+  [đánh giá hướng đi](DIRECTION_REVIEW.md).
 
 ## 2. Quyết định còn mở
 
@@ -33,7 +57,7 @@ trong [P1.md](P1.md).
 | --- | --- | --- |
 | Tiêu chí văn phong | Đã chốt: tiếng Việt tự nhiên, giữ giọng nhân vật và tên riêng | P0 |
 | Model và cách chạy | User chọn Qwen/Qwen3.5-4B; pinned profile/runtime smoke đã đạt trên fixture nhỏ; full-book, VM-loss durability và quality benchmark còn mở | P2/P0 |
-| Ngân sách | Đã chốt 0 đồng, Colab miễn phí theo phiên, tổng 4 phiên; tối đa 2 lần thử/model | P0 |
+| Ngân sách | Đã chốt 0 đồng; 4 phiên/2 lần thử mỗi model chỉ là budget benchmark P0 lịch sử, không giới hạn lượt dịch sách | P0 |
 | Máy local | Đã xác nhận WSL; cần RAM, dung lượng, distro và Python khả dụng | P0/P1 |
 | Website crawl đầu tiên | URL, quyền truy cập, cấu trúc chương | Trước P4 |
 | Chất lượng chấp nhận được | Đã chốt: không bỏ đoạn, mọi chunk hoàn tất, 0 lỗi sai ý trọng yếu sau review, saving tổng ≥25% | P0 |
@@ -253,6 +277,11 @@ Mẫu benchmark: một dòng mỗi chương/ứng viên, thêm 10 dòng trước
 - P3 thử lưu đồng thời hai tab và hiển thị lỗi bằng bàn phím/screen reader cơ bản.
 - P4 thử redirect tới mạng nội bộ, URL ngoài site và giới hạn tải; không chỉ kiểm thử trang đẹp.
 - Mỗi phase phải qua tiêu chí trong [ROADMAP.md](ROADMAP.md) trước khi mở rộng.
+- Chất lượng/25% tiết kiệm là tiêu chí benchmark P0 đã chốt nhưng chưa có report
+  trong repo; không tuyên bố đạt. Quality gate lịch sử này không chặn việc xây
+  reader local raw/dịch/song ngữ R1/R2. Reader acceptance xem
+  [ROADMAP.md](ROADMAP.md); hợp đồng reader tương lai ở mục 1 và đánh giá hiện
+  trạng tại [DIRECTION_REVIEW.md](DIRECTION_REVIEW.md).
 
 ## 11. Cơ sở tham khảo và giới hạn bằng chứng
 

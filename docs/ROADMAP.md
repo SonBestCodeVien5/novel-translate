@@ -13,24 +13,49 @@ VM/new VM, full book 390 chương, benchmark tốc độ/chất lượng hay rea
 Xem [INTEGRATION](INTEGRATION.md) và [REAL_BATCH](REAL_BATCH.md).
 Không gắn lịch giao hàng khi chưa có phép đo. Bằng chứng/giới hạn P1: [P1.md](P1.md).
 Kiến trúc, dữ liệu và hợp đồng batch: [PLAN.md](PLAN.md).
-Người dùng đã chốt EN → VI, 0 đồng, Colab miễn phí theo phiên, văn phong
-tiếng Việt tự nhiên giữ giọng nhân vật/tên riêng, tối đa 2 lần thử/model và
-tổng 4 phiên (14/10/2026). User đã chọn Qwen3.5 làm provider tích hợp; formal
-P0 metrics chưa được lưu trong repo. Theo yêu cầu ngày 16/10/2026, tập trung
-hoàn thiện app trên dữ liệu đã có; P4 crawling được hoãn, không triển khai thêm.
+Người dùng đã chốt EN → VI, 0 đồng, Colab miễn phí theo phiên và văn phong
+tiếng Việt tự nhiên giữ giọng nhân vật/tên riêng. Mốc tối đa 2 lần thử/model và
+tổng 4 phiên (14/10/2026) là ngân sách benchmark P0 lịch sử, không phải giới
+hạn mọi phiên dịch sách. User đã chọn Qwen3.5 làm provider tích hợp; formal P0
+metrics chưa được lưu trong repo. P4 crawling được hoãn.
+
+Hướng sản phẩm mới là app đọc truyện local nhẹ; giữ review để cải thiện bản dịch
+dần, không bắt duyệt hết mới đọc. Đánh giá hiện trạng và quyết định phạm vi:
+[DIRECTION_REVIEW.md](DIRECTION_REVIEW.md).
 
 ## Ưu tiên khi người dùng quay lại
 
-1. Xử lý an toàn credential Colab CLI cũ đã lộ trong log: thu hồi/đăng nhập lại
-   khi phù hợp và giữ SDK logging bị tắt.
-2. Trang sách P1 và review v2 đã giới hạn tải chunk/result/revision theo chương;
-   các trang phụ lấy metadata sách. Manifest/source v2 vẫn validate đầy đủ.
-   Chỉ mở thêm cache manifest hoặc chia nhỏ một chương nếu có nhu cầu và phép đo.
-3. UI đã có title theo trang, skip link tới main và tên nút lưu theo chương/chunk;
-   Chromium smoke bàn phím đạt trên fixture, gồm lưu/duyệt giữ trạng thái review.
-   Còn thử EPUB bằng reader native và kiểm screen reader trên máy có công cụ.
-4. Chỉ kiểm durability sau mất VM nếu có runtime phù hợp và được cho phép; trước
-   full book, chạy smoke nhỏ có chủ đích. Không tự dịch toàn bộ sách.
+1. **R1 — Reader local raw/dịch/song ngữ:** raw đọc không job; chọn job tường
+   minh; partial/offline-local đọc được, thiếu result báo rõ; revision hiện hành,
+   cảnh báo stale/unreviewed và link review từ đoạn đang đọc. Không ghép job hay
+   version. **DoD:** fixture có raw, nhiều job, revision, stale và partial chứng
+   minh chọn đúng nguồn/bản; thiếu đoạn có thông báo; đọc không đổi approval;
+   từ đoạn đọc mở đúng chunk/job để review. Đọc raw từ dữ liệu local phải chạy
+   khi không có network, tokenizer hoặc Colab; chỉ tải nội dung chương được
+   chọn; giữ label, thao tác bàn phím và escaping nội dung không tin cậy.
+2. **R2 — Nhớ vị trí đọc:** tách khỏi review/checkpoint dịch, SQLite local một
+   vị trí gần nhất mỗi sách. **DoD:** đóng/mở lại app khôi phục chapter, nguồn
+   raw/job/mode và anchor hợp lệ; trường hợp job/anchor không còn hợp lệ báo
+   fallback rõ, không hứa pixel sync.
+3. **R3 — Durability batch:** kiểm chứng nhiều phiên và resume trên VM mới bằng
+   fixture nhỏ khi auth/runtime/quota cho phép; trước GPU preflight kích thước
+   manifest và dự kiến chi phí trên mẫu, không nâng trần hiện có 16 MiB/10.000
+   chunk. Tiếp tục công việc local song song, không gate R1/R2. **DoD:** ghi
+   nhận preflight, manifest giữ nguyên, chunk đã hoàn tất không dịch/import
+   trùng và chunk thiếu tiếp tục được; báo giới hạn do môi trường nếu chưa thể
+   kiểm. Nếu thiếu runtime/auth/quota thì R3 vẫn chưa kiểm và DoD chưa đạt;
+   ghi nhận giới hạn môi trường không thay cho kiểm chứng. Không yêu cầu chạy
+   toàn sách.
+4. **R4 — Cải thiện dịch khi đọc:** giữ glossary/review hiện có; nối thao tác
+   glossary và sửa/review từ reader, thu mẫu lỗi có bằng chứng. **DoD:** thay đổi
+   glossary chỉ ảnh hưởng job mới; mẫu lỗi gắn được nguồn/job/chunk; chỉ mở rộng
+   bounded context khi có lỗi cụ thể và tiêu chí kiểm chứng.
+5. Kiểm thử EPUB bằng reader native và screen reader vẫn là việc mở, nhưng không
+   chặn R1/R2. Xử lý an toàn credential Colab CLI cũ trước lần dùng CLI tiếp.
+
+Một/vài phiên cho toàn sách là mong muốn, chưa thể cam kết do quota/runtime.
+Job toàn sách tiếp tục dùng `--limit` và resume; chưa đổi manifest contract hoặc
+thêm subset/retranslate khi chưa có nhu cầu cụ thể.
 
 ## Backlog và definition of done
 
@@ -48,6 +73,10 @@ hoàn thiện app trên dữ liệu đã có; P4 crawling được hoãn, không
 | P3-02 | Backup, restore, accessibility | Dev | Restore thử thành công, form dùng được bằng bàn phím |
 | P3-03 | Nối flow dịch vào UI | Dev + người dùng | Nút Dịch/tiến độ/resume gọi script đã kiểm chứng; kết quả chuyển sang review, duyệt/export chính thức có chủ đích; có notebook fallback khi CLI bị hoãn |
 | P4-01 | Adapter một site | Dev | Crawl/import lặp đúng thứ tự, fixture và SSRF tests đạt |
+| R1 | Reader local raw/dịch/song ngữ | Dev | Đạt DoD R1 ở ưu tiên phía trên; chưa triển khai |
+| R2 | Nhớ vị trí đọc | Dev | Đạt DoD R2; chưa triển khai |
+| R3 | Nhiều phiên/VM mới | Dev + người dùng | Đạt DoD R3 trên fixture khi runtime cho phép; còn kiểm, không gate reader |
+| R4 | Glossary/review cải thiện lúc đọc | Dev + người dùng | Đạt DoD R4; glossary/review đã có một phần |
 
 P1-01/P1-02 có bằng chứng trong P1.md. P2-01 offline app flow có bundle v2,
 Qwen3.5 profile, immutable tokenizer manifest, per-result runner, local
@@ -88,11 +117,15 @@ Phụ thuộc: chọn 5 chương đại diện, xác nhận ngôn ngữ, quyền
 - Đo baseline sửa/dịch thủ công trên mẫu để biết công cụ thực sự tiết kiệm thời gian hay không.
 - Ngưỡng đã chốt: không bỏ đoạn; mọi chunk hoàn tất; không lỗi sai ý trọng yếu còn sót sau review.
 - Hiệu quả đã chốt: tổng thời gian dịch + sửa giảm ít nhất 25% so với baseline trên cùng mẫu.
-- Văn phong đã chốt: tiếng Việt tự nhiên, giữ giọng nhân vật và tên riêng; tối đa 2 lần thử/model, tổng 4 phiên Colab miễn phí. Chưa có kết quả benchmark.
+- Văn phong đã chốt: tiếng Việt tự nhiên, giữ giọng nhân vật và tên riêng. Tối
+  đa 2 lần thử/model, tổng 4 phiên Colab miễn phí là giới hạn của benchmark P0
+  lịch sử, không phải trần dịch sách; chưa có kết quả benchmark.
 - Kiểm tra chương dài bằng chunk đúng context budget, không chỉ benchmark đoạn ngắn vừa model.
 
 Acceptance: báo cáo có 5 chương × 2 ứng viên, số liệu thực, cấu hình tái chạy và lỗi đại diện.
-Exit: chọn model/phương án đạt ngưỡng đã chốt; không đạt thì đổi ứng viên hoặc dừng đầu tư phần dịch.
+Exit lịch sử: chọn model/phương án đạt ngưỡng đã chốt; không đạt thì đổi ứng
+viên hoặc dừng đầu tư phần dịch. Chưa có report để kết luận đạt. Đây không phải
+điều kiện mở reader local R1/R2; reader có acceptance độc lập ở đầu roadmap.
 Output: báo cáo benchmark và decision log; chưa tuyên bố sản phẩm dùng được.
 
 ## P1 — Một luồng TXT chạy bền vững với fake provider
@@ -144,7 +177,9 @@ Phụ thuộc: P1 đạt exit; user đã chọn Qwen3.5 làm provider tích hợ
 - Kiểm tra bản EPUB xuất bằng parser/validator phù hợp và mở đọc thử trong ít nhất một reader.
 
 Acceptance: một sách mẫu TXT và EPUB đi hết luồng thực, resume không chạy lại chunk đã lưu hợp lệ.
-Exit: output XHTML/spine hợp lệ; phép đo thực vẫn đáp ứng ngưỡng P0 trên mẫu hồi quy.
+Exit lịch sử P2: output XHTML/spine hợp lệ và phép đo benchmark P0 trên mẫu
+hồi quy. P0 quality report chưa lưu nên không kết luận ngưỡng đã đạt; điều kiện
+này không gate backlog reader R1/R2. Reader có DoD riêng ở đầu roadmap.
 Output: hướng dẫn vận hành Colab và phục hồi, bằng chứng CLI đạt hoặc lý do hoãn cùng notebook fallback; chưa có cam kết runtime/speed cố định.
 
 ## P3 — Review và glossary đủ dùng hằng ngày

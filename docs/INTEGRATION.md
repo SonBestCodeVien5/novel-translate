@@ -126,8 +126,9 @@ Xem [COLAB_V2](COLAB_V2.md). Các mục dưới là hợp đồng kiểm chứng
   Live T4/Drive evidence được ghi riêng ở đầu tài liệu; không chứng minh full-book
   runtime hoặc chất lượng dịch.
 - **Còn lại:** automated tests trong full suite bao phủ concurrency, CSRF và XSS;
-  kiểm tra accessibility bằng bàn phím/screen reader vẫn chưa làm. Progress
-  local không đại diện runtime liveness.
+  Chromium keyboard smoke trên fixture cho skip link và thao tác review đã được
+  ghi ở đầu [HANDOFF](HANDOFF.md). Screen reader chưa kiểm. Progress local
+  không đại diện runtime liveness.
 
 ### P3-01 — Glossary theo sách
 
@@ -155,7 +156,12 @@ Xem [COLAB_V2](COLAB_V2.md). Các mục dưới là hợp đồng kiểm chứng
   đạt; app sau đó migrate additive 6→11 bảng, vẫn 1 book/390 chapters/3.929 chunks
   và raw/source giữ nguyên. Native EPUB reader còn cần mở thử.
 
-Phần hợp đồng kiểm chứng còn lại:
+Acceptance lịch sử dưới đây ghi phạm vi dự kiến ở thời điểm chuẩn bị tích hợp.
+Đối chiếu với readiness đầu tài liệu và [HANDOFF](HANDOFF.md) để biết điều gì
+đã được kiểm sau đó; các acceptance này không phủ định test/evidence hiện có
+và cũng không có nghĩa mọi mục đã pass.
+
+Phần hợp đồng kiểm chứng còn lại (tiêu chí lịch sử):
 
 - **Mục tiêu:** EPUB export/roundtrip; backup/restore DB cùng assets.
 - **File/caller dự kiến:** `app/core.py`, `app/epub.py`, `app/main.py`,
@@ -163,12 +169,18 @@ Phần hợp đồng kiểm chứng còn lại:
   `test_web.py`; fixture EPUB giả/tự tạo; docs hướng dẫn.
 - **In/out:** snapshot glossary bất biến; giữ locator/spine/resources; backup
   nhất quán; không tái dịch hoặc thay revision âm thầm.
-- **Kiểm tra dự kiến (chưa chạy):** glossary đổi giữa job; EPUB roundtrip bằng
-  parser và reader; backup restore; ký tự escape/link/ảnh/spine.
+- **Tiêu chí acceptance lịch sử:** glossary đổi giữa job; EPUB roundtrip bằng
+  parser và reader; backup restore; ký tự escape/link/ảnh/spine. Readiness hiện
+  tại và kiểm tra đã chạy được ghi ở đầu tài liệu cùng HANDOFF; danh sách này
+  không khẳng định mọi hạng mục đã đạt.
 - **Dừng:** nếu mapping không thể giữ nguyên cấu trúc EPUB thì báo lỗi/review,
   không xuất file có vẻ thành công.
 
-## Acceptance end-to-end dự kiến
+## Acceptance end-to-end lịch sử
+
+Đây là danh sách tiêu chí từ lượt chuẩn bị ban đầu, không phải trạng thái hiện
+tại. Đối chiếu readiness ở đầu tài liệu và HANDOFF: một số kiểm tra đã chạy sau
+đó; không suy ra toàn bộ suite, browser, live runtime hay quality gate đã đạt.
 
 Fixture nhỏ tự tạo, pipeline local → file/Drive → runner → local Store → review
 → TXT. Phải chứng minh: import cùng result lặp lại là no-op; payload khác cùng
@@ -177,5 +189,4 @@ nguồn hoặc manifest stale bị giữ riêng; crash sau ghi file nhưng trư�
 có thể nhập lại; result tới muộn sau edit không đổi revision; hai tab stale bị
 409/conflict; `max_tokens`, token budget vượt hoặc thiếu EOS không thành complete;
 chunk order theo manifest dù result tới lộn thứ tự; restart chỉ bỏ qua checkpoint
-đã đọc lại và xác minh. TXT official đòi đủ chunk và duyệt rõ. Các bước này là
-tiêu chí tương lai, chưa chạy trong lượt chuẩn bị.
+đã đọc lại và xác minh. TXT official đòi đủ chunk và duyệt rõ.

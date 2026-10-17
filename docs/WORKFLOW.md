@@ -21,6 +21,14 @@ trạng thái live/Drive mới nhất xem HANDOFF, không suy ra từ test offli
 P1 fake có bằng chứng lịch sử ở [P1.md](P1.md). Khi làm pipeline/glossary/resume, đọc
 [skill staging](../codex-setup/skills/novel-translation/SKILL.md).
 
+Hướng sản phẩm hiện ưu tiên app đọc local nhẹ (raw/dịch/song ngữ); review được
+giữ để cải thiện bản dịch dần, không phải điều kiện để đọc. Reader chuyên dụng
+và reading progress chưa triển khai. Thứ tự R1–R4 cùng hợp đồng tương lai nằm ở
+[ROADMAP](ROADMAP.md), đánh giá code ở [DIRECTION_REVIEW](DIRECTION_REVIEW.md).
+Native EPUB reader và screen reader vẫn là kiểm tra mở, không còn là bước bắt
+buộc trước reader local. Ngân sách 4 phiên/2 lần thử mỗi model là benchmark P0
+lịch sử; ngân sách vận hành vẫn 0 đồng, còn số phiên dịch theo quota/runtime.
+
 ## Phong cách làm việc
 
 Dùng tiếng Việt ngắn, rõ; ponytail full: thay đổi nhỏ nhất giải quyết trọn yêu cầu,

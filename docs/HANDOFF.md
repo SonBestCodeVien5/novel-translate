@@ -75,13 +75,30 @@
   tests/test_real_runner.py`: **43 passed**, 1 warning có sẵn, 9,09s.
   Bổ sung ca sparse/missing/malformed/hostile listing và run-level không sinh
   model khi listing unavailable. Không đổi manifest/source/provider/runner.
-- Đã chạy lại cùng lệnh `--limit 1 --timeout 1800` với collector mới; chờ
-  kết quả live trước khi kết luận sửa được luồng thật. Không restart T4.
+- Lượt đầu sau sửa collector vượt collection (unavailable=0) nhưng dừng
+  LOCAL_OR_REMOTE_ERROR trước kết quả. Main chạy chẩn đoán guarded preflight,
+  contents-root probe, cleanup và `_prepare_remote`: prefix **content**, code
+  và manifest transfer thành công. Chưa xác định nguyên nhân lỗi lần trước.
+- Chunk đầu đã hoàn tất live/import local: **1/38**, input819/output905 token,
+  3.263 ký tự dịch, EOS được runner/validator chấp nhận, không rejected/
+  unavailable. Duration 240,90s gồm cold load; chưa dùng làm warm throughput.
+  Sửa collector đã vượt collection live và giữ cùng manifest.
+- Đã khởi chạy tiếp phần còn thiếu trên cùng kernel/model bằng `run_colab.py`
+  cùng job/alias, **không --limit**, `--timeout 10800` (trần3giờ, không cấp VM
+  hay tăng ngân sách tiền). Model cache dùng lại. Không chạy một lệnh khác
+  cùng kernel khi process này còn sống; checkpoint mỗi chunk import ngay.
+- Main xem nhanh đoạn đầu thấy một câu diễn đạt có dấu hiệu sai; ghi nguồn/
+  job/chunk trong `data/translation-trials/quality-observations.json`, không
+  sửa machine result hoặc autoapprove. Đây là bản máy chưa review, không kết
+  luận đạt quality benchmark. Metrics chunk đầu ở cùng thư mục trial.
+- App cổng8000 sau đó ngừng nhận kết nối; main khởi động lại đúng `data/`,
+  bind127.0.0.1. GET reader thực sau restart đạt: thấy đúng bản dịch đầu,
+  giữ cảnh báo partial/chưa duyệt. Chưa kiểm đủ10chương.
 - App hiện có ở cổng 8000; main GET index và reader sample/job đều HTTP200.
   Không khởi động được server mới vì port đã dùng; không dừng server đó.
 - Resume phải kiểm DB/Drive/process trước, không chạy hai lệnh cùng kernel.
   Sau chunk đầu hợp lệ sẽ tiếp tục phần còn thiếu của đúng job để đủ 10 chương.
-  Chưa có bản dịch (**0/38**); không cấp VM tự động.
+  Đã có chunk đầu (**1/38**), còn37chunk; không cấp VM tự động.
 - Yêu cầu dịch thử này ưu tiên trước R2. Không tạo job/manifest khác khi resume;
   dùng đúng IDs bên trên và kiểm checkpoint. Chỉ sau đủ 10 chương mới đánh dấu
   hoàn tất; không suy ra chất lượng hoặc full-book readiness từ preflight.
